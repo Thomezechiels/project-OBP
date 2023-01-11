@@ -1,0 +1,61 @@
+---
+#starting en ending hour of simulation
+start_time: 0
+end_time: 24
+
+#size of one period
+size_period: 1
+
+#number of intervals one period should be split into (steps)
+steps: 3600 
+
+#chance of arrival per period [0-1]
+arrival_rates:
+  - 0.05
+  - 0.1
+  - 0.15
+  - 0.15
+  - 0.2
+  - 0.22
+  - 0.22
+  - 0.25
+  - 0.38
+  - 0.41
+  - 0.42
+  - 0.46
+  - 0.39
+  - 0.52
+  - 0.59
+  - 0.41
+  - 0.43
+  - 0.39
+  - 0.36
+  - 0.26
+  - 0.15
+  - 0.11
+  - 0.10
+  - 0.08
+
+#probability request will be a small request (probabiliy large request will automatically be 1 - prob_small)
+prob_small: 0.8
+
+#distribution parameters of requests
+mean_small: 60
+std_small: 10
+mean_large: 300
+std_large: 80
+
+#maximum waiting time of a request untill it leaves the system
+max_wait: 1000
+
+#rewards and costs
+cost_server: 1
+cost_fail: 100
+reward_small: 2
+reward_large: 5
+
+#minimum and maximum number of servers
+min_servers: 0
+max_servers: 60
+max_processes: 5
+
