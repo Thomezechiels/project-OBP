@@ -7,7 +7,7 @@ end_time: 24
 size_period: 1
 
 #number of intervals one period should be split into (steps)
-steps: 3600 
+steps: 3600
 
 #chance of arrival per period [0-1]
 arrival_rates:
@@ -40,13 +40,13 @@ arrival_rates:
 prob_small: 0.8
 
 #distribution parameters of requests
-mean_small: 60
+mean_small: 20
 std_small: 10
 mean_large: 300
 std_large: 80
 
 #maximum waiting time of a request untill it leaves the system
-max_wait: 1000
+max_wait: 800
 
 #rewards and costs
 cost_server: 1
@@ -57,5 +57,5 @@ reward_large: 5
 #minimum and maximum number of servers
 min_servers: 0
 max_servers: 60
-max_processes: 5
+max_processes: 10
 
