@@ -1,3 +1,4 @@
+import math
 import random
 
 class ServerNetwork:
@@ -11,10 +12,6 @@ class ServerNetwork:
     self.servers = servers
     self.inactive_servers = []
     self.used_servers = []
-
-  def update(self, t):
-    for server in self.servers:
-      server.updateServer(t)
 
   def getServer(self, id):
     for server in self.servers:
@@ -40,6 +37,14 @@ class ServerNetwork:
       server = Server(self.num_servers, self.capacity_servers, )
     self.num_servers += 1
     self.servers.append(server)
+
+  def setNActiveServers(self, n):
+    diff = n - len(self.servers)
+    if diff == 0:
+      return
+    else:
+      for i in range(0, abs(diff)):
+        self.addServer() if diff > 0 else self.removeServer()
     
 
   def getNextServer(self):
@@ -54,6 +59,10 @@ class ServerNetwork:
 
     self.used_servers.append(self.num_servers)
 
+  def update(self, t):
+    for server in self.servers:
+      server.updateServer(t)
+      
   def handleRequest(self, t, request):
     server = self.getNextServer()
     server.addRequest(t, request)
@@ -69,7 +78,6 @@ class ServerNetwork:
           profit -= cost_fail
     return profit
           
-
   def listServers(self):
     print('Current status of all servers:\n')
     for server in self.servers:
@@ -153,11 +161,9 @@ class Server:
 
 # For testing (remove in final product):
 
-# if __name__ == '__main__':
-#   serverNetwork = ServerNetwork(3, 5)
-#   serverNetwork.listServers()
-#   serverNetwork.removeServer()
-#   serverNetwork.removeServer()
-#   serverNetwork.addServer()
-#   serverNetwork.inactive_servers[0].printStatus()
-#   serverNetwork.listServers()
+if __name__ == '__main__':
+  serverNetwork = ServerNetwork(3, 5)
+  serverNetwork.setNActiveServers(8)
+  serverNetwork.listServers()
+  serverNetwork.setNActiveServers(2)
+  serverNetwork.listServers()
