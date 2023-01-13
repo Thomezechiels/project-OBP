@@ -1,5 +1,6 @@
 import math
 import random
+from loadBalancer import LoadBalancer
 
 class ServerNetwork:
   def __init__(self, num_servers, server_capacity):
@@ -12,6 +13,7 @@ class ServerNetwork:
     self.servers = servers
     self.inactive_servers = []
     self.used_servers = []
+    self.load_balancer = LoadBalancer()
 
   def getServer(self, id):
     for server in self.servers:
@@ -53,11 +55,10 @@ class ServerNetwork:
     return self.getServer(id)
 
   def evaluate(self):
-    #implement the algorithm here. It can add or remove servers just before the next period starts
-    if random.random() < 0.4: #this is just here temporarily for testing.
-      self.addServer() 
-
     self.used_servers.append(self.num_servers)
+    #implement the algorithm here. It can add or remove servers just before the next period starts
+    num_servers = self.load_balancer.evaluate()
+    self.setNActiveServers(num_servers)
 
   def update(self, t):
     for server in self.servers:
@@ -132,6 +133,7 @@ class Server:
         request.setCompleted(False)
         self.finished_requests.append(request)
         del self.requests_running[i]
+        #delete
 
   def check_queue(self, t):
     for i in reversed(range(len(self.queue))):
