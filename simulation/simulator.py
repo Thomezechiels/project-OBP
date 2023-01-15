@@ -1,14 +1,6 @@
-from argparse import ArgumentParser
-import yaml
-import math
-import random
-import numpy as np
-from request import Request
-from servers import ServerNetwork
 
-global config
 
-def generateRequest(arrival_prob):
+def generateRequest(config, arrival_prob):
     if random.random() <= arrival_prob:
         type = 'small' if random.random() < config['prob_small'] else 'large'
         size = np.random.normal(loc=config['mean_' + type], scale=config['std_' + type])
@@ -16,7 +8,7 @@ def generateRequest(arrival_prob):
     else:
         return False    
 
-def run_simulation():
+def run_simulation(config):
     serverNetwork = ServerNetwork(1, config['max_processes'])
     steps = config['steps']
     t = 0
@@ -25,28 +17,32 @@ def run_simulation():
         arrival_prob = config['arrival_rates'][math.floor(t / steps)]
         if (t / steps).is_integer():
             serverNetwork.evaluate()
-        request = generateRequest(arrival_prob)
+        request = generateRequest(config, arrival_prob)
         if (request and request.size > 0):
             serverNetwork.handleRequest(t, request)
         serverNetwork.update(t)
         t += 1
 
-    serverNetwork.listServers()
-    serverNetwork.printRunningRequests(t, [0,1,2,3,4])
-    print('profit:', serverNetwork.calculate_profit(config['reward_small'], config['reward_large'], config['cost_fail'], config['cost_server']))
+    return serverNetwork.outputState()
+    # serverNetwork.listServers()
+    # serverNetwork.printRunningRequests(t, [0,1,2,3,4])
+    # print('profit:', serverNetwork.calculate_profit(config['reward_small'], config['reward_large'], config['cost_fail'], config['cost_server']))
 
-if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('-C', '--config',
-                        dest='config',
-                        help='Select config to run the simulation with',
-                        default='default.yaml', type=str)
+# if __name__ == '__main__':
+#     parser = ArgumentParser()
+#     parser.add_argument('-C', '--config',
+#                         dest='config',
+#                         help='Select config to run the simulation with',
+#                         default='default.yaml', type=str)
 
-    args = parser.parse_args()
+#     args = parser.parse_args()
 
-    with open(".\\simulation\\" + args.config, "r") as stream:
-        try:
-            config = yaml.safe_load(stream)
-            run_simulation()
-        except yaml.YAMLError as exc:
-            print(exc)
+#     SCRIPT_PATH = str(pathlib.Path(__file__).parent.parent.resolve())
+#     path = os.path.join(SCRIPT_PATH, os.path.join(args.config))
+    
+#     with open(path, "r") as stream:
+#         try:
+#             config = yaml.safe_load(stream)
+#             run_simulation()
+#         except yaml.YAMLError as exc:
+#             print(exc)

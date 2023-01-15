@@ -1,6 +1,6 @@
 ---
 #starting en ending hour of simulation
-start_time: 0
+start_time: 4
 end_time: 24
 
 #size of one period
@@ -11,7 +11,7 @@ steps: 3600
 
 #chance of arrival per period [0-1]
 arrival_rates:
-  - 0.05
+  - 0.65
   - 0.1
   - 0.15
   - 0.15

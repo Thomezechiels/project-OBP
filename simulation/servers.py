@@ -45,9 +45,10 @@ class ServerNetwork:
     else:
       for i in range(0, abs(diff)):
         self.addServer() if diff > 0 else self.removeServer()
-    
 
   def getNextServer(self):
+    if self.server_pointer >= self.num_servers:
+      self.server_pointer = 0
     id = self.server_pointer
     self.server_pointer = (id + 1) if id < (self.num_servers - 1) else 0
     return self.getServer(id)
@@ -59,11 +60,13 @@ class ServerNetwork:
 
     self.used_servers.append(self.num_servers)
 
-  def update(self, t):
+  def update(self, t, state_update):
     for server in self.servers:
-      server.updateServer(t)
+      server.updateServer(t, state_update)
       
   def handleRequest(self, t, request):
+    if self.num_servers == 0:
+      self.addServer()
     server = self.getNextServer()
     server.addRequest(t, request)
 
@@ -90,6 +93,21 @@ class ServerNetwork:
       if (server):
         server.printRunningRequests(t)
 
+  def outputState(self):
+    ret = {}
+    ret['num_servers'] = self.num_servers
+    ret['servers_capacity'] = self.capacity_servers
+    servers = {}
+    for server in self.servers:
+      servers[server.id] = server.outputState()
+    ret['servers'] = servers
+    inactive_servers = {}
+    for server in self.inactive_servers:
+      inactive_servers[server.id] = server.outputState()
+    ret['inactive_servers'] = inactive_servers
+    ret['servers_used'] = self.used_servers
+    return ret
+
 class Server:
   def __init__(self, id, capacity):
     self.id = id
@@ -98,6 +116,7 @@ class Server:
     self.requests_running = []
     self.queue = []
     self.finished_requests = []
+    self.performance_history = []
 
   def addRequest(self, t, request):
     request.setStartQueue(t)
@@ -109,7 +128,7 @@ class Server:
   def set_active(self):
     self.active = True
 
-  def updateServer(self, t):
+  def updateServer(self, t, state_update):
     self.check_running_requests(t)
     self.check_queue(t)
     if self.capacity > len(self.requests_running):
@@ -120,6 +139,11 @@ class Server:
           request.setEnd(t + request.size)
           request.setStart(t)
           self.requests_running.append(request)
+    if t % state_update == 0:
+      self.add_entry_history(t)
+
+  def add_entry_history(self, t):
+    self.performance_history.append(len(self.requests_running))
 
   def check_running_requests(self, t):
     for i in reversed(range(len(self.requests_running))):
@@ -141,6 +165,16 @@ class Server:
         self.finished_requests.append(request)
         del self.queue[i]
 
+  def outputState(self):
+    ret = {}
+    ret['capacity'] = self.capacity 
+    ret['active'] = self.active
+    ret['num_running_requests'] = len(self.requests_running)
+    ret['size_queue'] = len(self.queue)
+    ret['num_finised_requests'] = len(self.finished_requests)
+    ret['performance_history'] = self.performance_history
+    return ret
+
   def printRunningRequests(self, t):
     if len(self.requests_running) > 0:
       result = 'Running requests of server: ' + str(self.id) + '\n'
@@ -161,9 +195,9 @@ class Server:
 
 # For testing (remove in final product):
 
-if __name__ == '__main__':
-  serverNetwork = ServerNetwork(3, 5)
-  serverNetwork.setNActiveServers(8)
-  serverNetwork.listServers()
-  serverNetwork.setNActiveServers(2)
-  serverNetwork.listServers()
+# if __name__ == '__main__':
+#   serverNetwork = ServerNetwork(3, 5)
+#   serverNetwork.setNActiveServers(8)
+#   serverNetwork.listServers()
+#   serverNetwork.setNActiveServers(2)
+#   serverNetwork.listServers()
