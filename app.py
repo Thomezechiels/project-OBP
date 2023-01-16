@@ -195,7 +195,7 @@ def generate_metric_list_header():
         {"height": "3rem", "margin": "1rem 0", "textAlign": "center"},
         {"id": "m_header_1", "children": html.Div("Server id")},
         {"id": "m_header_2", "children": html.Div("Queue size")},
-        {"id": "m_header_3", "children": html.Div("Sparkline")},
+        {"id": "m_header_3", "children": html.Div("Performance History")},
         {"id": "m_header_4", "children": html.Div("Load%")},
         {"id": "m_header_5", "children": html.Div("%Load")},
         {"id": "m_header_6", "children": "Available"},
@@ -249,7 +249,7 @@ def generate_metric_row_helper(index, capacity, active, num_running_requests, pe
                         "data": [
                             {
                                 "y": performance_history,
-                                "x": np.linspace(0, len(performance_history)*100, len(performance_history) + 1).tolist(),
+                                "x": np.linspace(0, len(performance_history)*100, len(performance_history) + 1).tolist() if len(performance_history) > 1 else [0],
                                 "mode": "lines+markers",
                                 "name": index,
                                 "line": {"color": "#f4d44d"},
@@ -535,7 +535,6 @@ def update_status_servers(interval):
 )
 def update_clock(interval):
     global state
-    step = state['step']
     d_hours = state['step'] / config['steps']
     hour = config['start_time'] + math.floor(d_hours)
     minutes = math.floor((d_hours % 1) * 60)
@@ -557,7 +556,7 @@ def create_callback(index):
     return callback
 
 
-for index in range(0, 10):
+for index in range(0, 100):
     update_index_row_function = create_callback(index)
     app.callback(
         output=[
