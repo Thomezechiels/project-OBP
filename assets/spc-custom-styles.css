@@ -174,6 +174,9 @@ body {
   text-align: left;
   padding: 1rem 2rem;
   border-bottom: 1px solid #4b5460;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 /* Main Dashboard Tab
@@ -576,7 +579,7 @@ body {
   overflow-y: scroll;
   width: 100%;
   height: auto;
-  max-height: 60vh;
+  max-height: 40vh;
 }
 
 /*

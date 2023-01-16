@@ -29,8 +29,10 @@ global stop_sim
 app = dash.Dash(
     __name__,
     meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
+    title="Manufacturing SPC Dashboard",
+    update_title=None,
 )
-app.title = "Manufacturing SPC Dashboard"
+
 server = app.server
 app.config["suppress_callback_exceptions"] = True
 
@@ -158,8 +160,8 @@ def build_tab_1():
         ),
     )
 
-def generate_section_banner(title):
-    return html.Div(className="section-banner", children=title)
+def generate_section_banner(title, extra):
+    return html.Div(className="section-banner", children=[title, extra])
 
 def build_top_panel():
     return html.Div(
@@ -171,7 +173,21 @@ def build_top_panel():
                 id="metric-summary-session",
                 className="eight columns",
                 children=[
-                    generate_section_banner("Network Control Metrics Summary"),
+                    generate_section_banner("Network Control Metrics Summary",
+                        html.Div(
+                            id="info-number-active-servers",
+                            children=[
+                                "Using ",
+                                html.Span(
+                                    id="num-used-servers",
+                                    children="0"
+                                ),
+                                "/",
+                                str(config['max_servers']),
+                                " of available servers"
+                            ]
+                        )
+                    ),
                     html.Div(
                         id="metric-div",
                         children=[
@@ -218,6 +234,16 @@ def generate_metric_row_helper(index, capacity, active, num_running_requests, pe
     ooc_percentage_id = index + suffix_ooc_n
     ooc_graph_id = index + suffix_ooc_g
     indicator_id = index + suffix_indicator
+
+    ranges = np.array_split(np.arange(config['max_processes'] + 1), 3)
+    color = {
+        'ranges': {
+            "#92e0d3": [ranges[0][0], ranges[0][-1]],
+            "#f4d44d": [ranges[1][0] - 1, ranges[1][-1]],
+            "#f45060": [ranges[2][0] - 1, ranges[2][-1]],
+        }
+
+        }
 
     return generate_metric_row(
         div_id,
@@ -282,15 +308,9 @@ def generate_metric_row_helper(index, capacity, active, num_running_requests, pe
             "id": ooc_graph_id + "_container",
             "children": daq.GraduatedBar(
                 id=ooc_graph_id,
-                color={
-                    "ranges": {
-                        "#92e0d3": [0, 3],
-                        "#f4d44d ": [3, 7],
-                        "#f45060": [7, 10],
-                    }
-                },
+                color=color,
                 showCurrentValue=False,
-                max=10,
+                max=config['max_processes'],
                 value=0,
             ),
         },
@@ -404,7 +424,6 @@ def update_sparkline(index, xaxis):
     y_array = servers[index]["performance_history"][-1]
     x_array = (len(servers[index]["performance_history"])-1)*100
     if 'range' in xaxis and xaxis['range'][-1] < x_array: 
-        print(index, x_array, y_array, xaxis['range'])
         return (dict(x=[[x_array]], y=[[y_array]]), [0])
     return None
 
@@ -447,7 +466,7 @@ app.layout = html.Div(
         build_banner(),
         dcc.Interval(
             id="interval-component",
-            interval = 2 * 1000,
+            interval = 1 * 1000,
             n_intervals=0
         ),
         html.Div(
@@ -487,7 +506,6 @@ def render_tab_content(tab_switch):
     [
         State("interval-component", "n_intervals"),
         State("interval-component", "disabled"),
-        State("n-interval-stage", "data"),
     ],
 )
 def update_interval_state(tab_switch, cur_interval, disabled, cur_stage):
@@ -511,22 +529,22 @@ def update_interval_state(tab_switch, cur_interval, disabled, cur_stage):
 
 # ======= update status servers =========
 @app.callback(
-    output=[Output("graphs-container", "children")],
+    output=[Output("graphs-container", "children"), Output("num-used-servers", "children")],
     inputs=[Input("interval-component", "n_intervals")],
 )
 def update_status_servers(interval):
     global state
+    running_servers = state['network']['num_servers']
     if not state['stop_sim']:
         running_prev = state['running_servers_prev']
-        running_servers = state['network']['num_servers']
         if not running_prev == running_servers:
             total_server_callbacks = state['total_server_callback_count']
             state['running_servers_prev'] = running_servers
             if running_servers > total_server_callbacks:
                 for index in range(total_server_callbacks, running_servers - total_server_callbacks):
                     state['total_server_callback_count'] = index
-            return build_top_panel()
-    return no_update
+            return build_top_panel(), running_servers
+    return no_update, running_servers
 
 # Update LED clock
 @app.callback(
@@ -549,7 +567,6 @@ def create_callback(index):
         queue, ooc_n, ooc_g_value, indicator = update_count(
             interval, index
         )
-        # print(relayoutData)
         spark_line_data = update_sparkline(index, figure['layout']['xaxis'])
         return queue, spark_line_data, ooc_n, ooc_g_value, indicator
 
