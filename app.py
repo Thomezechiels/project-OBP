@@ -36,6 +36,8 @@ app = dash.Dash(
 server = app.server
 app.config["suppress_callback_exceptions"] = True
 
+sim_params = ['algorithms', 'start_time', 'end_time', 'size_period', 'steps', 'arrival_rates', 'prob_small', 'mean_small', 'std_small', 'mean_large', 'std_large', 'max_wait', 'cost_server', 'cost_fail', 'reward_small', 'reward_large', 'min_servers', 'max_servers', 'max_processes']
+
 suffix_row = "_row"
 suffix_button_id = "_button"
 suffix_sparkline_graph = "_sparkline_graph"
@@ -60,7 +62,21 @@ def initState():
         }
     }
 
-state = initState()
+def resetState(state):
+    state = {
+        'running_servers_prev': 0,
+        'total_server_callback_count': 0,
+        'stop_sim': True,
+        'step': 0,
+        'network': {
+            'num_servers': 0,
+            'servers_capacity': 0,
+            'servers': {},
+            'inactive_servers': {},
+            'servers_used': [],
+            
+        }
+    }
 
 def generateRequest(arrival_prob):
     if np.random.random() <= arrival_prob:
@@ -71,13 +87,12 @@ def generateRequest(arrival_prob):
         return False
 
 def run_simulation(state_update = 200, live_mode = False):
-    global state
     state['stop_sim'] = False
     serverNetwork = ServerNetwork(5, config['max_processes'])
     steps = config['steps']
     t = 0
     end = (config['end_time'] - config['start_time']) * steps
-    while (t < end and not state['stop_sim']):
+    while (t <= end and not state['stop_sim']):
         arrival_prob = config['arrival_rates'][math.floor(t / steps)]
         if (t / steps).is_integer():
             serverNetwork.evaluate()
@@ -149,15 +164,102 @@ def build_tabs():
         ],
     )
 
+def create_callback_param(param):
+    def callback(value):
+        config[param] = value
+        return no_update
+    return callback
+
+
+for param in sim_params:
+    update_param_row_function = create_callback_param(param)
+    app.callback(
+        output=[Output("sim_input_" + param, "value")],
+        inputs=[Input("sim_input_" + param, "value")]
+    )(update_param_row_function)
+
+
+
+def generate_simulation_settings():
+    ret = []
+    for input, value in config.items():
+        if not isinstance(value, list):
+            ret.append(
+                html.Div(
+                    id="sim_input_wrap_" + input,
+                    children=(
+                        daq.NumericInput(id=("sim_input_" + input), label=input+":", className="setting-input", value=value, max=9999999)
+                    )
+                )
+            )
+    return ret
+
 def build_tab_1():
     return (
-        # Manually select metrics
         html.Div(
-            id="set-specs-intro-container",
-            children=html.P(
-                "Use historical control limits to establish a benchmark, or set new values."
-            ),
-        ),
+            id="settings-container",
+            children=[
+            # Manually select metrics
+                html.Div(
+                    id="set-specs-intro-container",
+                    # className='twelve columns',
+                    children=html.P(
+                        "Use historical control limits to establish a benchmark, or set new values."
+                    ),
+                ),
+                html.Div(
+                    id="settings-menu",
+                    children=[
+                        html.Div(
+                            id="metric-select-menu",
+                            # className='five columns',
+                            children=[
+                                html.Div(
+                                    id="algorithm-selection-wrap",
+                                    children = [
+                                        html.Label(id="algorithm-select-title", children="Select Algorithm"),
+                                        html.Br(),
+                                        dcc.Dropdown(
+                                            id="algorithm-select-dropdown",
+                                            options=list(
+                                                {"label": alg, "value": alg} for alg in config['algorithms']
+                                            ),
+                                            value=config['algorithms'][0],
+                                        ),
+                                    ]
+                                ),
+                                html.Div(
+                                    id="simulation-settings",
+                                    children=generate_simulation_settings()
+                                )
+                            ],
+                        ),
+                        html.Div(
+                            id="value-setter-menu",
+                            # className='six columns',
+                            children=[
+                                html.Div(id="value-setter-panel"),
+                                html.Br(),
+                                html.Div(
+                                    id="button-div",
+                                    children=[
+                                        html.Button("Update", id="value-setter-set-btn"),
+                                        html.Button(
+                                            "View current setup",
+                                            id="value-setter-view-btn",
+                                            n_clicks=0,
+                                        ),
+                                    ],
+                                ),
+                                html.Div(
+                                    id="value-setter-view-output", className="output-datatable"
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ]
+        ), 
     )
 
 def generate_section_banner(title, extra):
@@ -214,12 +316,11 @@ def generate_metric_list_header():
         {"id": "m_header_3", "children": html.Div("Performance History")},
         {"id": "m_header_4", "children": html.Div("Load%")},
         {"id": "m_header_5", "children": html.Div("%Load")},
-        {"id": "m_header_6", "children": "Available"},
+        {"id": "m_header_6", "children": "Availability"},
     )
 
 def generate_server_statuses():
     ret = []
-    global state
     servers = state['network']['servers']
     if servers:
         for idx, server in servers.items():
@@ -242,8 +343,7 @@ def generate_metric_row_helper(index, capacity, active, num_running_requests, pe
             "#f4d44d": [ranges[1][0] - 1, ranges[1][-1]],
             "#f45060": [ranges[2][0] - 1, ranges[2][-1]],
         }
-
-        }
+    }
 
     return generate_metric_row(
         div_id,
@@ -406,20 +506,15 @@ def build_quick_stats_panel():
                 children=[
                     html.Button(
                         "Start simulation", 
-                        id="value-setter-set-btn",
+                        id="start-stop-simulation-btn",
                         n_clicks=0
-                    ),
-                    html.Div(
-                        id="running-text",
-                        children="Not running"
-                    ),
+                    )
                 ],
             ),
         ],
     )
 
 def update_sparkline(index, xaxis):
-    global state
     servers = state['network']['servers']
     y_array = servers[index]["performance_history"][-1]
     x_array = (len(servers[index]["performance_history"])-1)*100
@@ -433,14 +528,12 @@ def update_count(interval, index):
         return "0", "0.00%", 0.00001, "#92e0d3"
 
     if interval > 0:
-        global state
         server = state['network']['servers'][index]
         ooc_count = server['num_running_requests']
         queue_size = server['size_queue']
         ooc_percentage_f = (ooc_count / 10) * 100
         ooc_percentage_str = "%.2f" % ooc_percentage_f + "%"
 
-        # Set maximum ooc to 10 for better grad bar display
         if ooc_count > 10:
             ooc_count = 10
 
@@ -449,10 +542,11 @@ def update_count(interval, index):
         else:
             ooc_grad_val = float(ooc_count)
 
+        ranges = np.array_split(np.arange(config['max_processes'] + 1), 3)
         # Set indicator theme according to threshold 5%
-        if 0 <= ooc_grad_val <= 5:
+        if 0 <= ooc_grad_val <= ranges[0][-1]:
             color = "#92e0d3"
-        elif 5 < ooc_grad_val < 7:
+        elif ranges[0][-1] < ooc_grad_val < ranges[1][-1]:
             color = "#f4d44d"
         else:
             color = "#FF0000"
@@ -516,24 +610,12 @@ def update_interval_state(tab_switch, cur_interval, disabled, cur_stage):
         return cur_interval
     return cur_stage
 
-# Callbacks for stopping interval update
-# @app.callback(
-#     [Output("interval-component", "disabled"), Output("value-setter-set-btn", "buttonText")],
-#     [Input("stop-button", "n_clicks")],
-#     [State("interval-component", "disabled")],
-# )
-# def stop_production(n_clicks, current):
-#     if n_clicks % 2 == 0:
-#         return True, "start"
-#     return not current, "stop" if current else "start"
-
 # ======= update status servers =========
 @app.callback(
     output=[Output("graphs-container", "children"), Output("num-used-servers", "children")],
     inputs=[Input("interval-component", "n_intervals")],
 )
 def update_status_servers(interval):
-    global state
     running_servers = state['network']['num_servers']
     if not state['stop_sim']:
         running_prev = state['running_servers_prev']
@@ -552,7 +634,6 @@ def update_status_servers(interval):
     [Input('interval-component', 'n_intervals')],
 )
 def update_clock(interval):
-    global state
     d_hours = state['step'] / config['steps']
     hour = config['start_time'] + math.floor(d_hours)
     minutes = math.floor((d_hours % 1) * 60)
@@ -588,19 +669,18 @@ for index in range(0, 100):
 
 @app.callback(
     # Output("running-text", "children"),
-    [ Output("value-setter-set-btn", "children"), Output("running-text", "children")],
-    [Input("value-setter-set-btn", "n_clicks")],
+    [ Output("start-stop-simulation-btn", "children")],
+    [Input("start-stop-simulation-btn", "n_clicks")],
 )
 def run_sim(n_clicks):
     if n_clicks % 2 == 1:
         live = True
         Thread(target=run_simulation, args=(200, live, )).start()
-        return ["Stop simulation", "Running simulation"]
+        return ["Stop simulation"]
     else:
-        global state
-        state = initState()
+        resetState(state)        
         print('Stopped simulation')
-        return ["Start simulation", "Not running"]
+        return ["Start simulation"]
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -617,6 +697,7 @@ if __name__ == '__main__':
     with open(path, "r") as stream:
         try:
             config = yaml.safe_load(stream)
+            state = initState()
             app.run_server(debug=True, port=8050)
         except yaml.YAMLError as exc:
             print(exc)

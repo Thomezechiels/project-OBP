@@ -1,4 +1,10 @@
 ---
+#Available algorithms for the load balancer
+algorithms:
+  - "Round Robin"
+  - "Least connections"
+  - "Random load"
+  
 #starting en ending hour of simulation
 start_time: 4
 end_time: 24

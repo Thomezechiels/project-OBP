@@ -345,6 +345,34 @@ body {
   height: 100%;
 }
 
+#settings-menu #simulation-settings .setting-input > div {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  align-items: center;
+  margin: 5px 0;
+}
+#settings-menu #simulation-settings .setting-input > div label {
+ min-width: 120px; 
+}
+#settings-menu #simulation-settings .setting-input .react-numeric-input {
+  margin-left: 20px;
+}
+#settings-menu #algorithm-selection-wrap {
+  display: inline-flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  margin: 5px 0px;
+  width: 100%;
+}
+#settings-menu #algorithm-selection-wrap label {
+  min-width: 120px;
+  margin-right: 20px;
+  }
+#settings-menu #algorithm-selection-wrap #algorithm-select-dropdown {
+  width: 100%;
+}
 .react-numeric-input, .react-numeric-input input {
   width: 100% !important;
 }
