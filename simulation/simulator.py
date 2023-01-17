@@ -3,9 +3,11 @@ import yaml
 import math
 import random
 import numpy as np
+from sklearn import linear_model
 import pandas as pd
 from request import Request
 from servers import ServerNetwork
+from regression import Regressor
 import os
 import pathlib
 from pathlib import Path  
@@ -21,6 +23,7 @@ def generateRequest(arrival_prob, config):
         return False    
 
 def run_simulation(config, data_generation = False):
+    regressionmodel = Regressor()
     serverNetwork = ServerNetwork(4, config['max_processes'])
     serverNetwork.setConfig(config)
     data_points = []
@@ -30,7 +33,7 @@ def run_simulation(config, data_generation = False):
     while (t < end):
         arrival_prob = config['arrival_rates'][math.floor(t / steps)]
         if (t / steps).is_integer() and t > 0:
-            num_servers, profit, workload = serverNetwork.evaluate(t, data_generation)
+            num_servers, profit, workload = serverNetwork.evaluate(t, data_generation,regressionmodel,config,arrival_prob)
             data_point = {
                 "action": num_servers,
                 "cost": -profit,
@@ -65,6 +68,7 @@ def generateData(config):
     # Add index to data frame
     train_df["index"] = range(1, len(train_df) + 1)
     train_df = train_df.set_index("index")
+
 
     filepath = Path('data/training.csv')  
     filepath.parent.mkdir(parents=True, exist_ok=True)  
