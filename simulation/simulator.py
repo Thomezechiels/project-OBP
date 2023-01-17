@@ -5,6 +5,8 @@ import random
 import numpy as np
 from request import Request
 from servers import ServerNetwork
+import os
+import pathlib
 
 global config
 
@@ -44,7 +46,10 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    with open(".\\simulation\\" + args.config, "r") as stream:
+    APP_PATH = str(pathlib.Path(__file__).parent.resolve())
+    path = os.path.join(APP_PATH, os.path.join(args.config))
+
+    with open(path, "r") as stream:
         try:
             config = yaml.safe_load(stream)
             run_simulation()
