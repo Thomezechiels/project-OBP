@@ -15,6 +15,9 @@ class ServerNetwork:
     self.used_servers = []
     self.load_balancer = LoadBalancer()
 
+  def setConfig(self, config):
+    self.config = config
+
   def getServer(self, id):
     for server in self.servers:
       if server.id == id:
@@ -47,15 +50,45 @@ class ServerNetwork:
     else:
       for i in range(0, abs(diff)):
         self.addServer() if diff > 0 else self.removeServer()
-    
 
   def getNextServer(self):
+    if self.server_pointer >= self.num_servers:
+      self.server_pointer = 0
     id = self.server_pointer
     self.server_pointer = (id + 1) if id < (self.num_servers - 1) else 0
     return self.getServer(id)
 
-  def evaluate(self):
+  def evaluate(self, t, data_generation):
     self.used_servers.append(self.num_servers)
+    if data_generation:
+      profit_period = self.calculate_profit_period()
+      workload = self.getTotalWorkload(t)
+      self.reset_period()
+      num_servers_used = self.num_servers
+      num_servers = random.randint(1, self.config['max_servers'])
+      self.setNActiveServers(num_servers)
+      return num_servers_used, profit_period, workload
+  
+  def reset_period(self):
+    for server in self.servers:
+      server.reset_period()
+
+  def getTotalWorkload(self, t):
+    workload = 0
+    for server in self.servers:
+      workload += server.getTotalWorkload(t)
+    return workload
+
+  def calculate_profit_period(self):
+    profit = -self.num_servers * self.config['cost_server']
+    for server in self.servers:
+      for request in server.finished_requests_period:
+        if request.completed:
+          profit += self.config['reward_small'] if request.type == 'small' else self.config['reward_large']
+        else:
+          profit -= self.config['cost_fail']
+    return profit
+    
     #implement the algorithm here. It can add or remove servers just before the next period starts
     # num_servers = self.load_balancer.evaluate()
     # self.setNActiveServers(num_servers)
@@ -65,18 +98,20 @@ class ServerNetwork:
       server.updateServer(t)
       
   def handleRequest(self, t, request):
+    if self.num_servers == 0:
+      self.addServer()
     server = self.getNextServer()
     server.addRequest(t, request)
 
-  def calculate_profit(self, reward_small, reward_large, cost_fail, cost_server):
-    profit = -sum(self.used_servers) * cost_server
+  def calculate_profit(self):
+    profit = -sum(self.used_servers) * self.config['cost_server']
     for server in self.servers:
       for request in server.finished_requests:
         if request.completed:
-            profit += reward_small if request.type == 'small' else reward_large
+          profit += self.config['reward_small'] if request.type == 'small' else self.config['reward_large']
         else:
           # print(cost_fail)
-          profit -= cost_fail
+          profit -= self.config['cost_fail']
     return profit
           
   def listServers(self):
@@ -99,6 +134,7 @@ class Server:
     self.requests_running = []
     self.queue = []
     self.finished_requests = []
+    self.finished_requests_period = []
 
   def addRequest(self, t, request):
     request.setStartQueue(t)
@@ -109,6 +145,17 @@ class Server:
 
   def set_active(self):
     self.active = True
+
+  def reset_period(self):
+    self.finished_requests_period = []
+
+  def getTotalWorkload(self, t):
+    workload = 0
+    for request in self.requests_running:
+      workload += request.end - t
+    for request in self.queue:
+      workload += request.size
+    return workload
 
   def updateServer(self, t):
     self.check_running_requests(t)
@@ -128,12 +175,13 @@ class Server:
       if t >= request.end:
         request.setCompleted(True)
         self.finished_requests.append(request)
+        self.finished_requests_period.append(request)
         del self.requests_running[i]
       elif t >= request.start + request.max_age:
         request.setCompleted(False)
         self.finished_requests.append(request)
+        self.finished_requests_period.append(request)
         del self.requests_running[i]
-        #delete
 
   def check_queue(self, t):
     for i in reversed(range(len(self.queue))):

@@ -57,6 +57,6 @@ reward_large: 5
 
 #minimum and maximum number of servers
 min_servers: 0
-max_servers: 60
+max_servers: 10
 max_processes: 10
 

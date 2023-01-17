@@ -3,10 +3,13 @@ import yaml
 import math
 import random
 import numpy as np
+import pandas as pd
 from request import Request
 from servers import ServerNetwork
 import os
 import pathlib
+from pathlib import Path  
+
 
 def generateRequest(arrival_prob, config):
     if random.random() <= arrival_prob:
@@ -17,24 +20,56 @@ def generateRequest(arrival_prob, config):
     else:
         return False    
 
-def run_simulation(config):
+def run_simulation(config, data_generation = False):
     serverNetwork = ServerNetwork(4, config['max_processes'])
+    serverNetwork.setConfig(config)
+    data_points = []
     steps = config['steps']
     t = 0
     end = (config['end_time'] - config['start_time']) * steps
     while (t < end):
         arrival_prob = config['arrival_rates'][math.floor(t / steps)]
-        if (t / steps).is_integer():
-            serverNetwork.evaluate()
+        if (t / steps).is_integer() and t > 0:
+            num_servers, profit, workload = serverNetwork.evaluate(t, data_generation)
+            data_point = {
+                "action": num_servers,
+                "cost": -profit,
+                "probability": 0.1,
+                "feature1": arrival_prob,
+                "feature2": config['prob_small'],
+                "feature3": int(workload),
+            }
+            data_points.append(data_point)
         request = generateRequest(arrival_prob, config)
         if (request and request.size > 0):
             serverNetwork.handleRequest(t, request)
         serverNetwork.update(t)
+        # if t % 500 == 0:
+        #     print('Step:', t)
         t += 1
 
-    serverNetwork.listServers()
-    serverNetwork.printRunningRequests(t, [0,1,2,3,4])
-    print('profit:', serverNetwork.calculate_profit(config['reward_small'], config['reward_large'], config['cost_fail'], config['cost_server']))
+    return data_points
+
+    # serverNetwork.listServers()
+    # serverNetwork.printRunningRequests(t, [0,1,2,3,4])
+    # print('profit:', serverNetwork.calculate_profit(config['reward_small'], config['reward_large'], config['cost_fail'], config['cost_server']))
+
+def generateData(config):
+    train_data = []
+    for i in range(100):
+        data_points = run_simulation(config, True)
+        train_data += data_points
+        print('Finished run:', i)
+    
+    train_df = pd.DataFrame(train_data)
+    # Add index to data frame
+    train_df["index"] = range(1, len(train_df) + 1)
+    train_df = train_df.set_index("index")
+
+    filepath = Path('data/training.csv')  
+    filepath.parent.mkdir(parents=True, exist_ok=True)  
+    train_df.to_csv(filepath)
+    
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -51,6 +86,7 @@ if __name__ == '__main__':
     with open(path, "r") as stream:
         try:
             config = yaml.safe_load(stream)
-            run_simulation(config)
+            # run_simulation(config)
+            generateData(config)
         except yaml.YAMLError as exc:
             print(exc)
