@@ -57,8 +57,8 @@ class ServerNetwork:
   def evaluate(self):
     self.used_servers.append(self.num_servers)
     #implement the algorithm here. It can add or remove servers just before the next period starts
-    num_servers = self.load_balancer.evaluate()
-    self.setNActiveServers(num_servers)
+    # num_servers = self.load_balancer.evaluate()
+    # self.setNActiveServers(num_servers)
 
   def update(self, t):
     for server in self.servers:
@@ -75,7 +75,7 @@ class ServerNetwork:
         if request.completed:
             profit += reward_small if request.type == 'small' else reward_large
         else:
-          print(cost_fail)
+          # print(cost_fail)
           profit -= cost_fail
     return profit
           

@@ -8,18 +8,17 @@ from servers import ServerNetwork
 import os
 import pathlib
 
-global config
-
-def generateRequest(arrival_prob):
+def generateRequest(arrival_prob, config):
     if random.random() <= arrival_prob:
         type = 'small' if random.random() < config['prob_small'] else 'large'
         size = np.random.normal(loc=config['mean_' + type], scale=config['std_' + type])
-        return Request(type, size, config['max_wait'])
+        max_age = config['max_wait_' + type]
+        return Request(type, size, max_age)
     else:
         return False    
 
-def run_simulation():
-    serverNetwork = ServerNetwork(1, config['max_processes'])
+def run_simulation(config):
+    serverNetwork = ServerNetwork(4, config['max_processes'])
     steps = config['steps']
     t = 0
     end = (config['end_time'] - config['start_time']) * steps
@@ -27,7 +26,7 @@ def run_simulation():
         arrival_prob = config['arrival_rates'][math.floor(t / steps)]
         if (t / steps).is_integer():
             serverNetwork.evaluate()
-        request = generateRequest(arrival_prob)
+        request = generateRequest(arrival_prob, config)
         if (request and request.size > 0):
             serverNetwork.handleRequest(t, request)
         serverNetwork.update(t)
@@ -52,6 +51,6 @@ if __name__ == '__main__':
     with open(path, "r") as stream:
         try:
             config = yaml.safe_load(stream)
-            run_simulation()
+            run_simulation(config)
         except yaml.YAMLError as exc:
             print(exc)

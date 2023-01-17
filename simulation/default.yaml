@@ -46,7 +46,8 @@ mean_large: 300
 std_large: 80
 
 #maximum waiting time of a request untill it leaves the system
-max_wait: 800
+max_wait_small: 200
+max_wait_large: 1000
 
 #rewards and costs
 cost_server: 1
