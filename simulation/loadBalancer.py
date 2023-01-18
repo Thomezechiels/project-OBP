@@ -23,9 +23,7 @@ class LoadBalancer:
         test_example = "| " + str(state['arrivals']) + " " + str(round(state['workload'], -3))
         choice = vw.predict(test_example)
         # choice = self.sample_custom_pmf(choice)
-        print(choice)
         choice = np.argmax(choice) + 1
-        print(test_example, choice)
         return choice
 
     

@@ -68,22 +68,21 @@ class ServerNetwork:
     self.server_pointer = (id + 1) if id < (self.num_servers - 1) else 0
     return self.getServer(id)
 
-  def evaluate(self, arrivals = 0, t = 0, data_generation = False, use_lb = False):
+  def evaluate(self, t, arrivals, use_lb):
     self.used_servers.append(self.num_servers)
+    if use_lb:
+      num_servers = self.load_balancer.evaluate({'arrivals': arrivals, 'workload': int(self.getTotalWorkload(t))})
+      self.setNActiveServers(num_servers)
+  
+  def data_generation_evalutation(self, t = 0):
     workload = self.prev_workload
     self.prev_workload = self.getTotalWorkload(t)
-    if data_generation:
-      profit_period = self.calculate_profit_period()
-      self.reset_period()
-      num_servers_used = self.num_servers
-      num_servers = random.randint(1, self.config['max_servers'])
-      # print(num_servers)
-      self.setNActiveServers(num_servers)
-      return num_servers_used, profit_period, workload
-    elif use_lb:
-      num_servers = self.load_balancer.evaluate({'arrivals': arrivals, 'workload': int(self.prev_workload)})
-      # print('Profit period:', self.calculate_profit_period())
-      self.setNActiveServers(num_servers)
+    profit_period = self.calculate_profit_period()
+    self.reset_period()
+    num_servers_used = self.num_servers
+    num_servers = random.randint(1, self.config['max_servers'])
+    self.setNActiveServers(num_servers)
+    return num_servers_used, profit_period, workload
   
   def reset_period(self):
     for server in self.servers:
