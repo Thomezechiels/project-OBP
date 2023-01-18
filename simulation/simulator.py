@@ -8,8 +8,7 @@ from request import Request
 from servers import ServerNetwork
 import os
 import pathlib
-from pathlib import Path  
-
+from pathlib import Path 
 
 def generateRequest(arrival_prob, config):
     if random.random() <= arrival_prob:
@@ -21,42 +20,47 @@ def generateRequest(arrival_prob, config):
         return False    
 
 def run_simulation(config, data_generation = False):
-    serverNetwork = ServerNetwork(4, config['max_processes'])
+    serverNetwork = ServerNetwork(5, config['max_processes'], routing_policy='round_robin')
     serverNetwork.setConfig(config)
     data_points = []
     steps = config['steps']
     t = 0
     end = (config['end_time'] - config['start_time']) * steps
-    while (t < end):
-        arrival_prob = config['arrival_rates'][math.floor(t / steps)]
-        if (t / steps).is_integer() and t > 0:
-            num_servers, profit, workload = serverNetwork.evaluate(t, data_generation)
-            data_point = {
-                "action": num_servers,
-                "cost": -profit,
-                "probability": 0.1,
-                "feature1": arrival_prob,
-                "feature2": config['prob_small'],
-                "feature3": int(workload),
-            }
-            data_points.append(data_point)
-        request = generateRequest(arrival_prob, config)
-        if (request and request.size > 0):
-            serverNetwork.handleRequest(t, request)
-        serverNetwork.update(t)
-        # if t % 500 == 0:
-        #     print('Step:', t)
+    while (t < end + 1):
+        if t < end:
+            arrival_prob = config['arrival_rates'][math.floor(t / steps)]
+        if (t / steps).is_integer():
+            if data_generation and t > 0:
+                arrival = config['arrival_rates'][math.floor((t -1)/ steps)]
+                num_servers, profit, workload = serverNetwork.evaluate(t = t, data_generation = True)
+                data_point = {
+                    "action": num_servers,
+                    "cost": -profit,
+                    "probability": 0.1,
+                    "feature_arrival": arrival,
+                    "feature_workload": int(round(workload, -3)),
+                }
+                data_points.append(data_point)
+            elif t == 0 and data_generation:
+                num_servers, profit, workload = serverNetwork.evaluate(t = t, data_generation = True)
+            elif not data_generation:
+                # print('\nPeriod', (t/steps))
+                serverNetwork.evaluate(t = t, arrivals=arrival_prob, use_lb = True)
+                # serverNetwork.listServers()
+        if t < end:
+            request = generateRequest(arrival_prob, config)
+            if (request and request.size > 0):
+                serverNetwork.handleRequest(t, request)
+            serverNetwork.update(t)
         t += 1
 
+    if not data_generation:
+        print(serverNetwork.calculate_profit())
     return data_points
-
-    # serverNetwork.listServers()
-    # serverNetwork.printRunningRequests(t, [0,1,2,3,4])
-    # print('profit:', serverNetwork.calculate_profit(config['reward_small'], config['reward_large'], config['cost_fail'], config['cost_server']))
 
 def generateData(config):
     train_data = []
-    for i in range(100):
+    for i in range(1000):
         data_points = run_simulation(config, True)
         train_data += data_points
         print('Finished run:', i)
@@ -85,8 +89,9 @@ if __name__ == '__main__':
 
     with open(path, "r") as stream:
         try:
+            random.seed(10)
             config = yaml.safe_load(stream)
-            # run_simulation(config)
-            generateData(config)
+            run_simulation(config)
+            # generateData(config)
         except yaml.YAMLError as exc:
             print(exc)

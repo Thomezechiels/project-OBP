@@ -3,9 +3,13 @@ class Request:
         self.type = type
         self.size = size
         self.max_age = max_age
+        self.failed = False
 
     def setEnd(self, time):
         self.end = time
+
+    def setFailed(self, failed):
+        self.failed = failed
 
     def setStartQueue(self, time):
         self.start_queue = time

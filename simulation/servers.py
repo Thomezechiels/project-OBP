@@ -2,10 +2,13 @@ import math
 import random
 from loadBalancer import LoadBalancer
 
+random.seed(10)
+
 class ServerNetwork:
-  def __init__(self, num_servers, server_capacity):
+  def __init__(self, num_servers, server_capacity, routing_policy = 'round_robbin'):
     self.num_servers = int(num_servers)
     self.server_pointer = 0
+    self.routing_policy = routing_policy
     self.capacity_servers = server_capacity
     servers = []
     for i in range(0, self.num_servers):
@@ -14,9 +17,11 @@ class ServerNetwork:
     self.inactive_servers = []
     self.used_servers = []
     self.load_balancer = LoadBalancer()
+    self.prev_workload = 0
 
   def setConfig(self, config):
     self.config = config
+    self.max_servers = config['max_servers']
 
   def getServer(self, id):
     for server in self.servers:
@@ -25,23 +30,28 @@ class ServerNetwork:
     return False
 
   def removeServer(self):
-    self.num_servers -= 1
-    server = self.getServer(self.num_servers)
-    server.set_inactive()
-    self.inactive_servers.append(server)
-    del self.servers[self.num_servers]
+    if self.num_servers > 1:
+      self.num_servers -= 1
+      server = self.getServer(self.num_servers)
+      server.set_inactive()
+      self.inactive_servers.append(server)
+      del self.servers[self.num_servers]
+    else:
+      print('cannot have less than 1 server active')
 
   def addServer(self):
     server = None
-    
-    if len(self.inactive_servers) > 0:
-      server = self.inactive_servers[-1]
-      server.set_active()
-      del self.inactive_servers[-1]
+    if self.num_servers < self.max_servers:
+      if len(self.inactive_servers) > 0:
+        server = self.inactive_servers[-1]
+        server.set_active()
+        del self.inactive_servers[-1]
+      else:
+        server = Server(self.num_servers, self.capacity_servers, )
+      self.num_servers += 1
+      self.servers.append(server)
     else:
-      server = Server(self.num_servers, self.capacity_servers, )
-    self.num_servers += 1
-    self.servers.append(server)
+      print('Cannot have more than', self.max_servers, 'active')
 
   def setNActiveServers(self, n):
     diff = n - len(self.servers)
@@ -58,16 +68,22 @@ class ServerNetwork:
     self.server_pointer = (id + 1) if id < (self.num_servers - 1) else 0
     return self.getServer(id)
 
-  def evaluate(self, t, data_generation):
+  def evaluate(self, arrivals = 0, t = 0, data_generation = False, use_lb = False):
     self.used_servers.append(self.num_servers)
+    workload = self.prev_workload
+    self.prev_workload = self.getTotalWorkload(t)
     if data_generation:
       profit_period = self.calculate_profit_period()
-      workload = self.getTotalWorkload(t)
       self.reset_period()
       num_servers_used = self.num_servers
       num_servers = random.randint(1, self.config['max_servers'])
+      # print(num_servers)
       self.setNActiveServers(num_servers)
       return num_servers_used, profit_period, workload
+    elif use_lb:
+      num_servers = self.load_balancer.evaluate({'arrivals': arrivals, 'workload': int(self.prev_workload)})
+      # print('Profit period:', self.calculate_profit_period())
+      self.setNActiveServers(num_servers)
   
   def reset_period(self):
     for server in self.servers:
@@ -80,38 +96,61 @@ class ServerNetwork:
     return workload
 
   def calculate_profit_period(self):
-    profit = -self.num_servers * self.config['cost_server']
+    cost_servers = -self.num_servers * self.config['cost_server']
+    rewards = 0
+    cost_failed = 0
     for server in self.servers:
       for request in server.finished_requests_period:
         if request.completed:
-          profit += self.config['reward_small'] if request.type == 'small' else self.config['reward_large']
-        else:
-          profit -= self.config['cost_fail']
+          rewards += self.config['reward_small'] if request.type == 'small' else self.config['reward_large']
+        elif request.failed:
+          cost_failed -= self.config['cost_fail']
+    # print('Cost servers:', cost_servers)
+    # print('Rewards:', rewards)
+    # print('Cost fails:', cost_failed)
+    profit = cost_servers + rewards + cost_failed
     return profit
     
-    #implement the algorithm here. It can add or remove servers just before the next period starts
-    # num_servers = self.load_balancer.evaluate()
-    # self.setNActiveServers(num_servers)
 
   def update(self, t):
     for server in self.servers:
       server.updateServer(t)
       
   def handleRequest(self, t, request):
+    server = None
     if self.num_servers == 0:
       self.addServer()
-    server = self.getNextServer()
+    if self.routing_policy == 'round_robin':
+      server = self.getNextServer()
+    elif self.routing_policy == 'least_connections':
+      server = self.getLeastConnections()
     server.addRequest(t, request)
 
-  def calculate_profit(self):
-    profit = -sum(self.used_servers) * self.config['cost_server']
+  def getLeastConnections(self):
+    lc_server = self.servers[0]
     for server in self.servers:
+      if len(lc_server.requests_running) > len(server.requests_running):
+        lc_server = server
+      elif len(lc_server.requests_running) == len(server.requests_running) and len(lc_server.queue) > len(server.queue):
+        lc_server = server
+    return lc_server
+    
+  def calculate_profit(self):
+    cost_servers = -sum(self.used_servers) * self.config['cost_server']
+    rewards = 0
+    fails = 0
+    servers = self.servers + self.inactive_servers
+    for server in servers:
       for request in server.finished_requests:
         if request.completed:
-          profit += self.config['reward_small'] if request.type == 'small' else self.config['reward_large']
-        else:
-          # print(cost_fail)
-          profit -= self.config['cost_fail']
+          rewards += self.config['reward_small'] if request.type == 'small' else self.config['reward_large']
+        elif request.failed:
+          fails -= self.config['cost_fail']
+
+    print('Cost servers:', cost_servers)
+    print('Rewards:', rewards)
+    print('Cost fails:', fails)
+    profit = cost_servers + rewards + fails
     return profit
           
   def listServers(self):
@@ -177,18 +216,21 @@ class Server:
         self.finished_requests.append(request)
         self.finished_requests_period.append(request)
         del self.requests_running[i]
-      elif t >= request.start + request.max_age:
-        request.setCompleted(False)
-        self.finished_requests.append(request)
-        self.finished_requests_period.append(request)
-        del self.requests_running[i]
+      # elif t >= request.start + request.max_age:
+      #   request.setCompleted(False)
+      #   request.setFailed(True)
+      #   self.finished_requests.append(request)
+      #   self.finished_requests_period.append(request)
+      #   del self.requests_running[i]
 
   def check_queue(self, t):
     for i in reversed(range(len(self.queue))):
       request = self.queue[i]
       if t >= request.start_queue + request.max_age:
         request.setCompleted(False)
+        request.setFailed(True)
         self.finished_requests.append(request)
+        self.finished_requests_period.append(request)
         del self.queue[i]
 
   def printRunningRequests(self, t):
@@ -211,9 +253,9 @@ class Server:
 
 # For testing (remove in final product):
 
-if __name__ == '__main__':
-  serverNetwork = ServerNetwork(3, 5)
-  serverNetwork.setNActiveServers(8)
-  serverNetwork.listServers()
-  serverNetwork.setNActiveServers(2)
-  serverNetwork.listServers()
+# if __name__ == '__main__':
+#   serverNetwork = ServerNetwork(3, 5)
+#   serverNetwork.setNActiveServers(8)
+#   serverNetwork.listServers()
+#   serverNetwork.setNActiveServers(2)
+#   serverNetwork.listServers()
