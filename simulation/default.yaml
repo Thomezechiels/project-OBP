@@ -50,8 +50,8 @@ max_wait_small: 200
 max_wait_large: 1000
 
 #rewards and costs
-cost_server: 1
-cost_fail: 100
+cost_server: 150
+cost_fail: 50
 reward_small: 2
 reward_large: 5
 
