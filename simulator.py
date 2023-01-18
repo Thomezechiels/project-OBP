@@ -1,16 +1,15 @@
 from argparse import ArgumentParser
+from pathlib import Path 
 import yaml
+
 import math
 import random
 import numpy as np
-from sklearn import linear_model
 import pandas as pd
-from request import Request
-from servers import ServerNetwork
-from regression import Regressor
-import os
-import pathlib
-from pathlib import Path 
+
+from server_network.request import Request
+from server_network.servers import ServerNetwork
+
 
 def generateRequest(arrival_prob, config):
     if random.random() <= arrival_prob:
@@ -22,7 +21,7 @@ def generateRequest(arrival_prob, config):
         return False    
 
 def run_simulation(config, use_lb):
-    serverNetwork = ServerNetwork(5, config['max_processes'], routing_policy='round_robin')
+    serverNetwork = ServerNetwork(5, config['max_processes'], routing_policy='round_robin', load_balancer='contextual_bandit')
     serverNetwork.setConfig(config)
     steps = config['steps']
     t = 0
@@ -79,7 +78,6 @@ def generateData(config):
         print('Finished run:', i)
     
     train_df = pd.DataFrame(train_data)
-    # Add index to data frame
     train_df["index"] = range(1, len(train_df) + 1)
     train_df = train_df.set_index("index")
 
@@ -96,15 +94,14 @@ if __name__ == '__main__':
                         default='default.yaml', type=str)
 
     args = parser.parse_args()
+    filepath = Path(args.config)  
+    filepath.parent.mkdir(parents=True, exist_ok=True)  
 
-    APP_PATH = str(pathlib.Path(__file__).parent.resolve())
-    path = os.path.join(APP_PATH, os.path.join(args.config))
-
-    with open(path, "r") as stream:
+    with open(filepath, "r") as stream:
         try:
             random.seed(10)
             config = yaml.safe_load(stream)
-            # run_simulation(config, True)
-            generateData(config)
+            run_simulation(config, True)
+            # generateData(config)
         except yaml.YAMLError as exc:
             print(exc)

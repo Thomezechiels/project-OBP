@@ -1,11 +1,11 @@
 import math
 import random
-from loadBalancer import LoadBalancer
+from server_network.load_balancers.loadBalancer import LoadBalancer
 
 random.seed(10)
 
 class ServerNetwork:
-  def __init__(self, num_servers, server_capacity, routing_policy = 'round_robbin'):
+  def __init__(self, num_servers, server_capacity, routing_policy = 'round_robbin', load_balancer = 'contextual_bandit'):
     self.num_servers = int(num_servers)
     self.server_pointer = 0
     self.routing_policy = routing_policy
@@ -16,7 +16,7 @@ class ServerNetwork:
     self.servers = servers
     self.inactive_servers = []
     self.used_servers = []
-    self.load_balancer = LoadBalancer()
+    self.load_balancer = LoadBalancer(load_balancer)
     self.prev_workload = 0
 
   def setConfig(self, config):

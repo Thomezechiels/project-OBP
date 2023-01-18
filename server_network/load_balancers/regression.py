@@ -13,7 +13,7 @@ class Regressor:
         X = df[['feature1','feature2']]
         y = df['feature3']
         model = linear_model.LinearRegression()
-        model.fit(X,y)
+        model.fit(X.values(), y)
         return model
 
     def determineservers(self,config, arrivalprob):
