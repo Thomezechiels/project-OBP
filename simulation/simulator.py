@@ -3,9 +3,11 @@ import yaml
 import math
 import random
 import numpy as np
+from sklearn import linear_model
 import pandas as pd
 from request import Request
 from servers import ServerNetwork
+from regression import Regressor
 import os
 import pathlib
 from pathlib import Path 
