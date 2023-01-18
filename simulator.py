@@ -10,7 +10,6 @@ import pandas as pd
 from server_network.request import Request
 from server_network.servers import ServerNetwork
 
-
 def generateRequest(arrival_prob, config):
     if random.random() <= arrival_prob:
         type = 'small' if random.random() < config['prob_small'] else 'large'
@@ -27,8 +26,7 @@ def run_simulation(config, use_lb):
     t = 0
     end = (config['end_time'] - config['start_time']) * steps
     while (t < end):
-        if t < end:
-            arrival_prob = config['arrival_rates'][math.floor(t / steps)]
+        arrival_prob = config['arrival_rates'][math.floor(t / steps)]
         if (t / steps).is_integer():
             serverNetwork.evaluate(t, arrival_prob, use_lb)
         request = generateRequest(arrival_prob, config)

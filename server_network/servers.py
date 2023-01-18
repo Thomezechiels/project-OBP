@@ -10,9 +10,7 @@ class ServerNetwork:
     self.server_pointer = 0
     self.routing_policy = routing_policy
     self.capacity_servers = server_capacity
-    servers = []
-    for i in range(0, self.num_servers):
-      servers.append(Server(i, server_capacity))
+    servers = [Server(i, server_capacity) for i in range(num_servers)]
     self.servers = servers
     self.inactive_servers = []
     self.used_servers = []
@@ -215,12 +213,6 @@ class Server:
         self.finished_requests.append(request)
         self.finished_requests_period.append(request)
         del self.requests_running[i]
-      # elif t >= request.start + request.max_age:
-      #   request.setCompleted(False)
-      #   request.setFailed(True)
-      #   self.finished_requests.append(request)
-      #   self.finished_requests_period.append(request)
-      #   del self.requests_running[i]
 
   def check_queue(self, t):
     for i in reversed(range(len(self.queue))):
