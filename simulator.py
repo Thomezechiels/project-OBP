@@ -1,6 +1,8 @@
 from argparse import ArgumentParser
 from pathlib import Path 
 import yaml
+import pickle
+import json
 
 import math
 import random
@@ -10,7 +12,9 @@ import pandas as pd
 from server_network.request import Request
 from server_network.servers import ServerNetwork
 
-def generateRequest(arrival_prob, config):
+global config
+
+def generateRequest(arrival_prob):
     if random.random() <= arrival_prob:
         type = 'small' if random.random() < config['prob_small'] else 'large'
         size = np.random.normal(loc=config['mean_' + type], scale=config['std_' + type])
@@ -19,7 +23,7 @@ def generateRequest(arrival_prob, config):
     else:
         return False    
 
-def run_simulation(config, use_lb):
+def run_simulation(use_lb):
     serverNetwork = ServerNetwork(5, config['max_processes'], routing_policy='round_robin', load_balancer='contextual_bandit')
     serverNetwork.setConfig(config)
     steps = config['steps']
@@ -37,7 +41,7 @@ def run_simulation(config, use_lb):
 
     print(serverNetwork.calculate_profit())
 
-def run_data_simulation(config):
+def run_data_simulation():
     serverNetwork = ServerNetwork(6, config['max_processes'], routing_policy='round_robin')
     serverNetwork.setConfig(config)
     data_points = []
@@ -68,10 +72,10 @@ def run_data_simulation(config):
         t += 1
     return data_points
 
-def generateData(config):
+def generateData():
     train_data = []
     for i in range(10):
-        data_points = run_data_simulation(config)
+        data_points = run_data_simulation()
         train_data += data_points
         print('Finished run:', i)
     
@@ -82,7 +86,65 @@ def generateData(config):
     filepath = Path('data/training_test.csv')  
     filepath.parent.mkdir(parents=True, exist_ok=True)  
     train_df.to_csv(filepath)
-    
+
+def run_simulation_hour(n, arrival_rate):
+    serverNetwork = ServerNetwork(n, config['max_processes'], routing_policy='round_robin', load_balancer='none')
+    serverNetwork.setConfig(config)
+    steps = config['steps']
+    end = steps * 1
+    t = 0
+    while (t < end):
+        request = generateRequest(arrival_rate)
+        if (request and request.size > 0):
+            serverNetwork.handleRequest(t, request)
+        serverNetwork.update(t)
+        if (t / steps - 1).is_integer():
+            serverNetwork.evaluate(t, arrival_rate)
+        t += 1
+    return serverNetwork.calculate_profit()
+
+def calculate_profit_n(n, arrival_rate):
+    profit = 0
+    RUNS = 10
+    for j in range(RUNS):
+        profit += run_simulation_hour(n, arrival_rate)
+    return profit/RUNS
+
+def binary_search(low, high, arrival_prob):
+    cache = {}
+    def _reward_func(x, arrival_prob):
+        if x <= 0:
+            return 0
+        elif x not in cache:
+            cache[x] = calculate_profit_n(x, arrival_prob)
+        return cache[x]
+        
+    while (high - low) > 0:
+        if high - low == 1:
+            return high if _reward_func(high, arrival_prob) > _reward_func(low, arrival_prob) else low
+        mid = int((low + high) / 2)
+        neighborhood = [mid-1, mid, mid+1]
+        rewards = [_reward_func(x, arrival_prob) for x in neighborhood]
+        max_index = rewards.index(max(rewards))
+        max_value = neighborhood[max_index]
+
+        if max_value == mid:
+            return max_value
+        elif max_value < mid:
+            high = mid
+        else:
+            low = mid
+
+    return mid
+
+def arrival_server_function():
+    d = {}
+    for i in range(1, 101):
+        arrival_prob = i / 100
+        print('Finding optimum for arrival rate:', arrival_prob)
+        d[arrival_prob] = binary_search(1, 11, arrival_prob)
+    with open("server_optimum.pickle", "wb") as handle:
+        pickle.dump(d, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -95,11 +157,16 @@ if __name__ == '__main__':
     filepath = Path(args.config)  
     filepath.parent.mkdir(parents=True, exist_ok=True)  
 
+    # with open("server_optimum.pickle", "rb") as handle:
+    #     my_dict = pickle.load(handle)
+    #     print(json.dumps(my_dict, indent=4))
+
     with open(filepath, "r") as stream:
         try:
             random.seed(10)
             config = yaml.safe_load(stream)
-            run_simulation(config, True)
-            # generateData(config)
+            # run_simulation(True)
+            # generateData()
+            arrival_server_function()
         except yaml.YAMLError as exc:
             print(exc)

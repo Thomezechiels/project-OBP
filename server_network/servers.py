@@ -5,7 +5,7 @@ from server_network.load_balancers.loadBalancer import LoadBalancer
 random.seed(10)
 
 class ServerNetwork:
-  def __init__(self, num_servers, server_capacity, routing_policy = 'round_robbin', load_balancer = 'contextual_bandit'):
+  def __init__(self, num_servers, server_capacity, routing_policy = 'round_robbin', load_balancer = 'none'):
     self.num_servers = int(num_servers)
     self.server_pointer = 0
     self.routing_policy = routing_policy
@@ -66,9 +66,9 @@ class ServerNetwork:
     self.server_pointer = (id + 1) if id < (self.num_servers - 1) else 0
     return self.getServer(id)
 
-  def evaluate(self, t, arrivals, use_lb):
+  def evaluate(self, t, arrivals):
     self.used_servers.append(self.num_servers)
-    if use_lb:
+    if self.load_balancer.model:
       num_servers = self.load_balancer.evaluate({'arrivals': arrivals, 'workload': int(self.getTotalWorkload(t))})
       self.setNActiveServers(num_servers)
   
@@ -144,9 +144,9 @@ class ServerNetwork:
         elif request.failed:
           fails -= self.config['cost_fail']
 
-    print('Cost servers:', cost_servers)
-    print('Rewards:', rewards)
-    print('Cost fails:', fails)
+    # print('Cost servers:', cost_servers)
+    # print('Rewards:', rewards)
+    # print('Cost fails:', fails)
     profit = cost_servers + rewards + fails
     return profit
           
