@@ -3,6 +3,7 @@ from pathlib import Path
 import yaml
 import pickle
 import json
+from statistics import mean
 
 import math
 import random
@@ -14,7 +15,7 @@ from server_network.servers import ServerNetwork
 
 global config
 
-def generateRequest(arrival_prob):
+def generateRequest(arrival_prob,config):
     if random.random() <= arrival_prob:
         type = 'small' if random.random() < config['prob_small'] else 'large'
         size = np.random.normal(loc=config['mean_' + type], scale=config['std_' + type])
@@ -23,7 +24,71 @@ def generateRequest(arrival_prob):
     else:
         return False    
 
-def run_simulation(use_lb):
+def save_arrivals():
+    requests_list = []
+    t = 0
+    steps = config['steps']
+    end = (config['end_time'] - config['start_time']) * steps
+    hour = 0
+    while (t < end):
+        arrival_prob = config['arrival_rates'][math.floor(t / steps)]
+        request = generateRequest(arrival_prob, config)
+        if (t / steps).is_integer():
+            hour +=1
+        if request == False:
+            requests_list.append([0,hour])
+        else:
+            requests_list.append([1,hour])
+        t += 1
+
+    requests_df = pd.DataFrame(requests_list, columns = ['request','hour'])
+    requests_df["index"] = range(1, len(requests_df) + 1)
+    requests_df = requests_df.set_index("index")
+
+    filepath = Path('data/requests_df.csv')  
+    filepath.parent.mkdir(parents=True, exist_ok=True)  
+    requests_df.to_csv(filepath)
+
+def estimate_arrival_rate(hour):
+    df = pd.read_csv('data/requests_df.csv')
+    count = sum(df.loc[df['hour'] == hour]['request'])
+    rate = count/config['steps']
+    return rate
+
+def calculate_arrival_rates():
+    end = config['end_time']
+    start = config['start_time']
+    arrival_rates_est = []
+    for i in range(start+1,end+1):
+        estimated_arrival_rate = estimate_arrival_rate(i)
+        arrival_rates_est.append([i,estimated_arrival_rate])
+    arrival_rates_df = pd.DataFrame(arrival_rates_est, columns = ['hour','rate'])
+    arrival_rates_df["index"] = range(1, len(arrival_rates_df) + 1)
+    arrival_rates_df = arrival_rates_df.set_index("index")
+    return arrival_rates_df
+
+
+def calculate_p_hats(runs):
+    rate_dict = {}
+    arrival_rates_df = calculate_arrival_rates()
+    for i in range(len(arrival_rates_df['hour'])):
+        rate_dict[i+1] = []
+    for i in range(runs):
+        save_arrivals()
+        arrival_rates_df = calculate_arrival_rates()
+        for index,row in arrival_rates_df.iterrows():
+            rate_dict[index].append(row['rate'])    
+    for index,row in arrival_rates_df.iterrows():
+        arrival_rates_df.loc[index,'rate'] = mean(rate_dict[index])
+        
+    obj = pd.read_pickle(r'data/server_optimum.pickle')
+    for index,row in arrival_rates_df.iterrows():
+        rounded_rate = np.round(row['rate'],2)
+        arrival_rates_df.loc[index,'servers'] = obj[rounded_rate]
+    print(arrival_rates_df)
+    return arrival_rates_df
+        
+def run_simulation():
     serverNetwork = ServerNetwork(5, config['max_processes'], routing_policy='round_robin', load_balancer='contextual_bandit')
     serverNetwork.setConfig(config)
     steps = config['steps']
@@ -32,7 +97,7 @@ def run_simulation(use_lb):
     while (t < end):
         arrival_prob = config['arrival_rates'][math.floor(t / steps)]
         if (t / steps).is_integer():
-            serverNetwork.evaluate(t, arrival_prob, use_lb)
+            serverNetwork.evaluate(t, arrival_prob)
         request = generateRequest(arrival_prob, config)
         if (request and request.size > 0):
             serverNetwork.handleRequest(t, request)
@@ -165,8 +230,9 @@ if __name__ == '__main__':
         try:
             random.seed(10)
             config = yaml.safe_load(stream)
-            # run_simulation(True)
+            calculate_p_hats(5)
+            # run_simulation()
             # generateData()
-            arrival_server_function()
+            # arrival_server_function()
         except yaml.YAMLError as exc:
             print(exc)
