@@ -15,7 +15,7 @@ from server_network.servers import ServerNetwork
 
 global config
 
-def generateRequest(arrival_prob,config):
+def generateRequest(arrival_prob):
     if random.random() <= arrival_prob:
         type = 'small' if random.random() < config['prob_small'] else 'large'
         size = np.random.normal(loc=config['mean_' + type], scale=config['std_' + type])
@@ -23,6 +23,29 @@ def generateRequest(arrival_prob,config):
         return Request(type, size, max_age)
     else:
         return False    
+    
+def run_simulation():
+    serverNetwork = ServerNetwork(5, config['max_processes'], config = config, routing_policy='round_robin', load_balancer='none')
+    serverNetwork.setConfig(config)
+    steps = config['steps']
+    t = 0
+    end = (config['end_time'] - config['start_time']) * steps
+    while (t < end):
+        arrival_prob = config['arrival_rates'][math.floor(t / steps)]
+        if (t / steps).is_integer():
+            serverNetwork.evaluate(t, arrival_prob)
+        request = generateRequest(arrival_prob)
+        if (request and request.size > 0):
+            serverNetwork.handleRequest(t, request)
+        serverNetwork.update(t)
+        t += 1
+    
+    history = serverNetwork.outputStateHistory()
+    print(len(history['servers'][0]['num_finised_requests']))
+    # for server in history['servers']:
+    #     print(len(server['num_finised_requests']), len(server['size_queue']), len(server['num_running_requests']) )
+    # with open("network_history.pickle", "wb") as handle:
+    #     pickle.dump(history, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def save_arrivals():
     requests_list = []
@@ -32,7 +55,7 @@ def save_arrivals():
     hour = 0
     while (t < end):
         arrival_prob = config['arrival_rates'][math.floor(t / steps)]
-        request = generateRequest(arrival_prob, config)
+        request = generateRequest(arrival_prob)
         if (t / steps).is_integer():
             hour +=1
         if request == False:
@@ -82,29 +105,10 @@ def calculate_p_hats(runs):
         arrival_rates_df.loc[index,'rate'] = mean(rate_dict[index])
         
     obj = pd.read_pickle(r'data/server_optimum.pickle')
-    for index,row in arrival_rates_df.iterrows():
+    for index, row in arrival_rates_df.iterrows():
         rounded_rate = np.round(row['rate'],2)
         arrival_rates_df.loc[index,'servers'] = obj[rounded_rate]
-    print(arrival_rates_df)
     return arrival_rates_df
-        
-def run_simulation():
-    serverNetwork = ServerNetwork(5, config['max_processes'], routing_policy='round_robin', load_balancer='contextual_bandit')
-    serverNetwork.setConfig(config)
-    steps = config['steps']
-    t = 0
-    end = (config['end_time'] - config['start_time']) * steps
-    while (t < end):
-        arrival_prob = config['arrival_rates'][math.floor(t / steps)]
-        if (t / steps).is_integer():
-            serverNetwork.evaluate(t, arrival_prob)
-        request = generateRequest(arrival_prob, config)
-        if (request and request.size > 0):
-            serverNetwork.handleRequest(t, request)
-        serverNetwork.update(t)
-        t += 1
-
-    print(serverNetwork.calculate_profit())
 
 def run_data_simulation():
     serverNetwork = ServerNetwork(6, config['max_processes'], routing_policy='round_robin')
@@ -230,8 +234,8 @@ if __name__ == '__main__':
         try:
             random.seed(10)
             config = yaml.safe_load(stream)
-            calculate_p_hats(5)
-            # run_simulation()
+            # calculate_p_hats(5)
+            run_simulation()
             # generateData()
             # arrival_server_function()
         except yaml.YAMLError as exc:

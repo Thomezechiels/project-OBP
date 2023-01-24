@@ -4,7 +4,6 @@ import math
 import warnings
 
 class Regressor:
-
     def __init__(self):
         self.model = self.trainmodel()
 
