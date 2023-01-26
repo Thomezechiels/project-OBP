@@ -1,9 +1,10 @@
 import pandas as pd
-from sklearn.neural_network import MLPClassifier
 import numpy
-from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.datasets import make_classification
 
-class NeuralNetwork:
+
+class RandomForest:
     def __init__(self):
         self.model = None
         self.data = pd.DataFrame(columns = ['num_servers', 'X_t','profit'])
@@ -11,16 +12,17 @@ class NeuralNetwork:
 
     def evaluate(self, X_t):        
         max_profit = 0
-        optimal_servers = 1
-        for num_server in range(1,10):
+        optimal_servers = 0
+        for num_server in range(10):
             temp_df = pd.DataFrame([[num_server, X_t]],columns = ['num_servers', 'X_t'])
             temp_df[['x1','x2','x3','x4','x5','x6','x7','x8']] = pd.DataFrame(temp_df.X_t.tolist(), index = temp_df.index)
             temp_df = temp_df.drop(['X_t'],axis=1)
             profit = self.model.predict(temp_df)
+            print('is de profit ooit positief',profit)
             if profit > max_profit:
                 max_profit = profit
                 optimal_servers = num_server
-        print('max_profit', max_profit)
+        print('profit', profit)
         print('optimal_servers', optimal_servers)
         return optimal_servers
         
@@ -42,10 +44,5 @@ class NeuralNetwork:
         X = df[predictors].values
         y = df[target_column].values
         y=y.astype('int')
-
-        #train/test split nog implementeren?
-        # if self.iteration>10:
-        #     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=40)
  
-        self.model = MLPClassifier(hidden_layer_sizes=(8,8,8,8,8,8,8,8,8), activation='relu', solver='adam', max_iter=500)
-        self.model.fit(X,y)
+        
