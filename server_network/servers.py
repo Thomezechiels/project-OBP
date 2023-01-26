@@ -115,8 +115,8 @@ class ServerNetwork:
     self.load_balancer.train(num_servers, X_t, profit)
   
   def get_profit_period(self, t = 0):
-    self.reset_period()
     rewards, cost_servers, cost_failed, profit = self.calculate_profit_period()
+    self.reset_period()
     return len(self.active_servers), profit
   
   def reset_period(self):
