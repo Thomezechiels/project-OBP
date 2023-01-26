@@ -21,16 +21,27 @@ def initState(config):
       servers[id] = None
     ret['servers'] = servers
     ret['servers_used'] = []
+    ret['profit'] = {
+      'total': [],
+      'rewards': [],
+      'fails': [],
+      'server_costs': [],   
+    }
+    ret['arrivals'] = {
+      'small': [0],
+      'large': [0],
+    }
     return ret
 
 class ServerNetwork:
   def __init__(self, num_servers, server_capacity, config, routing_policy = 'round_robbin', load_balancer = 'NN'):
-    self.num_servers = int(num_servers)
     self.server_pointer = 0
     self.routing_policy = routing_policy
     self.capacity_servers = server_capacity
     self.all_servers = [Server(i, server_capacity, config) for i in range(config['max_servers'])]
-    (server.set_active() for server in self.all_servers if server.id < num_servers - 1)
+    for server in self.all_servers:
+      if server.id < num_servers:
+        server.set_active() 
     self.active_servers = [server for server in self.all_servers if server.active]
     self.used_servers = []
     self.load_balancer = False if load_balancer == 'none' else LoadBalancer(load_balancer, config)
@@ -43,26 +54,23 @@ class ServerNetwork:
     self.max_servers = config['max_servers']
 
   def getServer(self, id):
-    for server in self.active_servers:
+    for server in self.all_servers:
       if server.id == id:
         return server
     return False
 
   def removeServer(self):
-    if self.num_servers > 1:
-      self.num_servers -= 1
-      server = self.getServer(self.num_servers)
-      server.set_inactive()
-      del self.active_servers[self.num_servers]
+    if len(self.active_servers) > 1:
+      self.getServer(len(self.active_servers)-1).set_inactive()
+      del self.active_servers[len(self.active_servers)-1]
     else:
       print('cannot have less than 1 server active')
 
   def addServer(self):
     if len(self.all_servers) > len(self.active_servers):
-      server = self.all_servers[self.num_servers]
+      server = self.all_servers[len(self.active_servers)]
       server.set_active()
       self.active_servers.append(server)
-      self.num_servers += 1
     else:
       print('Cannot have more than', self.max_servers, 'active')
 
@@ -70,31 +78,35 @@ class ServerNetwork:
     diff = n - len(self.active_servers)
     if diff == 0:
       return
-    else:
-      for i in range(0, abs(diff)):
-        self.addServer() if diff > 0 else self.removeServer()
+    for i in range(0, abs(diff)):
+      self.addServer() if diff > 0 else self.removeServer()
 
   def getNextServer(self):
-    if self.server_pointer >= self.num_servers:
+    if self.server_pointer >= len(self.active_servers):
       self.server_pointer = 0
     id = self.server_pointer
-    self.server_pointer = (id + 1) if id < (self.num_servers - 1) else 0
+    self.server_pointer = (id + 1) if id < (len(self.active_servers) - 1) else 0
     return self.getServer(id)
   
   def updateState(self):
     for server in range(self.config['max_servers']):
-      # print(server)
       self.state_history['servers'][server] = self.getServer(server).updateState()
-    self.state_history['servers_used'].append(self.num_servers)
+    self.state_history['servers_used'].append(len(self.active_servers))
+    rewards, cost_servers, cost_failed, profit = self.calculate_profit_period()
+    self.state_history['profit']['total'].append(profit)
+    self.state_history['profit']['rewards'].append(rewards)
+    self.state_history['profit']['fails'].append(cost_failed)
+    self.state_history['profit']['server_costs'].append(cost_servers)
+    self.state_history['arrivals']['small'].append(0)
+    self.state_history['arrivals']['large'].append(0)
 
   def outputStateHistory(self):
-    # for server in range(self.config['max_servers']):
-    #   self.state_history['servers'][server] = pd.DataFrame(self.state_history['servers'][server])
     return self.state_history
 
-  def evaluate(self, X_t, period):
-    self.used_servers.append(self.num_servers)
+  def evaluate(self, X_t = [], period = 0):
+    self.used_servers.append(len(self.active_servers))
     self.updateState()
+    self.reset_period()
     if self.load_balancer:
       num_servers = self.load_balancer.evaluate(X_t, period)
       self.setNActiveServers(num_servers)
@@ -103,10 +115,9 @@ class ServerNetwork:
     self.load_balancer.train(num_servers, X_t, profit)
   
   def get_profit_period(self, t = 0):
-    profit_period = self.calculate_profit_period()
-    num_servers_used = self.num_servers
     self.reset_period()
-    return num_servers_used, profit_period
+    rewards, cost_servers, cost_failed, profit = self.calculate_profit_period()
+    return len(self.active_servers), profit
   
   def reset_period(self):
     for server in self.all_servers:
@@ -119,7 +130,7 @@ class ServerNetwork:
     return workload
 
   def calculate_profit_period(self):
-    cost_servers = -self.num_servers * self.config['cost_server']
+    cost_servers = -len(self.active_servers) * self.config['cost_server']
     rewards = 0
     cost_failed = 0
     for server in self.all_servers:
@@ -128,11 +139,11 @@ class ServerNetwork:
           rewards += self.config['reward_small'] if request.type == 'small' else self.config['reward_large']
         elif request.failed:
           cost_failed -= self.config['cost_fail']
-    print('Cost servers:', cost_servers)
-    print('Rewards:', rewards)
-    print('Cost fails:', cost_failed)
+    # print('Cost servers:', cost_servers)
+    # print('Rewards:', rewards)
+    # print('Cost fails:', cost_failed)
     profit = cost_servers + rewards + cost_failed
-    return profit
+    return rewards, cost_servers, cost_failed, profit
     
 
   def update(self, t):
@@ -141,7 +152,8 @@ class ServerNetwork:
       
   def handleRequest(self, t, request):
     server = None
-    if self.num_servers == 0:
+    self.state_history['arrivals'][request.type][-1] += 1
+    if len(self.active_servers) == 0:
       self.addServer()
     if self.routing_policy == 'round_robin':
       server = self.getNextServer()
@@ -191,7 +203,7 @@ class Server:
   def __init__(self, id, capacity, config):
     self.id = id
     self.capacity = capacity
-    self.active = True
+    self.active = False
     self.requests_running = []
     self.queue = []
     self.finished_requests = []
