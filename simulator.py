@@ -25,15 +25,15 @@ def generateRequest(arrival_prob):
         return False    
     
 def run_simulation():
-    serverNetwork = ServerNetwork(5, config['max_processes'], config = config, routing_policy='round_robin', load_balancer='none')
+    serverNetwork = ServerNetwork(5, config['max_processes'], config = config, routing_policy='round_robin', load_balancer='NN')
     serverNetwork.setConfig(config)
     steps = config['steps']
     t = 0
     end = (config['end_time'] - config['start_time']) * steps
     while (t < end):
         arrival_prob = config['arrival_rates'][math.floor(t / steps)]
-        if (t / steps).is_integer():
-            serverNetwork.evaluate(t, arrival_prob)
+        if (t / steps).is_integer() and t > 0:
+            serverNetwork.evaluate()
         request = generateRequest(arrival_prob)
         if (request and request.size > 0):
             serverNetwork.handleRequest(t, request)
@@ -41,11 +41,9 @@ def run_simulation():
         t += 1
     
     history = serverNetwork.outputStateHistory()
-    print(len(history['servers'][0]['num_finised_requests']))
-    # for server in history['servers']:
-    #     print(len(server['num_finised_requests']), len(server['size_queue']), len(server['num_running_requests']) )
-    # with open("network_history.pickle", "wb") as handle:
-    #     pickle.dump(history, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print(history)
+    with open("network_history.pickle", "wb") as handle:
+        pickle.dump(history, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def save_arrivals():
     requests_list = []

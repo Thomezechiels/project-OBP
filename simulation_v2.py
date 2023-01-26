@@ -25,7 +25,7 @@ def generateRequest(arrival_prob):
         return False    
     
 def run_simulation():
-    serverNetwork = ServerNetwork(5, config['max_processes'], config = config, routing_policy='round_robin', load_balancer='none')
+    serverNetwork = ServerNetwork(5, config['max_processes'], config = config, routing_policy='round_robin', load_balancer='NN')
     steps = config['steps']
     t = 0
     end = (config['end_time'] - config['start_time']) * steps
