@@ -1,12 +1,19 @@
 ---
 #Available algorithms for the load balancer
-algorithms:
+routing_policies:
   - "Round Robin"
-  - "Least connections"
-  - "Random load"
+  - "Least Connections"
+  # - "Random load"
+
+
+algorithms:
+ - "Neural Network"
+#  - "Random Forest"
+#  - "Logistic Regression"
+ - "None"
   
 #starting en ending hour of simulation
-start_time: 4
+start_time: 0
 end_time: 24
 
 #size of one period
@@ -17,7 +24,7 @@ steps: 3600
 
 #chance of arrival per period [0-1]
 arrival_rates:
-  - 0.65
+  - 0.05
   - 0.1
   - 0.15
   - 0.15
@@ -52,11 +59,12 @@ mean_large: 300
 std_large: 80
 
 #maximum waiting time of a request untill it leaves the system
-max_wait: 800
+max_wait_small: 200
+max_wait_large: 1000
 
 #rewards and costs
-cost_server: 1
-cost_fail: 100
+cost_server: 150
+cost_fail: 10
 reward_small: 2
 reward_large: 5
 

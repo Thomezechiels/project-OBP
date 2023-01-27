@@ -2,11 +2,10 @@ import os
 import pathlib
 
 import dash
-from dash import dcc, no_update, html, dash_table
+from dash import dcc, no_update, html
 from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import dash_daq as daq
-import plotly.express as px
 
 import pandas as pd
 from argparse import ArgumentParser
@@ -87,12 +86,12 @@ def generateRequest(arrival_prob):
         return False
 
 def run_simulation(state_update = 200, live_mode = False):
-    state['stop_sim'] = False
+    stop_sim = False
     serverNetwork = ServerNetwork(5, config['max_processes'])
     steps = config['steps']
     t = 0
     end = (config['end_time'] - config['start_time']) * steps
-    while (t <= end and not state['stop_sim']):
+    while (t <= end and not stop_sim):
         arrival_prob = config['arrival_rates'][math.floor(t / steps)]
         if (t / steps).is_integer():
             serverNetwork.evaluate()
@@ -101,7 +100,7 @@ def run_simulation(state_update = 200, live_mode = False):
             serverNetwork.handleRequest(t, request)
         serverNetwork.update(t, state_update)
         if live_mode:
-            time.sleep(0.01)
+            time.sleep(0.001)
         if t % state_update == 0:
             state['network'] = serverNetwork.outputState()
             state['step'] = t 
@@ -617,7 +616,7 @@ def update_interval_state(tab_switch, cur_interval, disabled, cur_stage):
 )
 def update_status_servers(interval):
     running_servers = state['network']['num_servers']
-    if not state['stop_sim']:
+    if not stop_sim:
         running_prev = state['running_servers_prev']
         if not running_prev == running_servers:
             total_server_callbacks = state['total_server_callback_count']
@@ -653,7 +652,6 @@ def create_callback(index):
 
     return callback
 
-
 for index in range(0, 100):
     update_index_row_function = create_callback(index)
     app.callback(
@@ -678,7 +676,8 @@ def run_sim(n_clicks):
         Thread(target=run_simulation, args=(200, live, )).start()
         return ["Stop simulation"]
     else:
-        resetState(state)        
+        state = initState()  
+        stop_sim = True      
         print('Stopped simulation')
         return ["Start simulation"]
 
@@ -698,6 +697,7 @@ if __name__ == '__main__':
         try:
             config = yaml.safe_load(stream)
             state = initState()
+            stop_sim = False
             app.run_server(debug=True, port=8050)
         except yaml.YAMLError as exc:
             print(exc)
