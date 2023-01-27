@@ -114,6 +114,14 @@ class ServerNetwork:
       num_servers = self.load_balancer.evaluate(X_t, period)
       self.setNActiveServers(num_servers)
 
+  def evaluate_live(self, X_t = [], period = 0):
+    self.used_servers.append(len(self.active_servers))
+    self.updateState()
+    self.reset_period()
+    if self.load_balancer:
+      return self.load_balancer.evaluate_live(X_t, period)
+      # self.setNActiveServers(num_servers)
+
   def train_lb(self, num_servers, X_t, profit):
     if self.load_balancer:
       self.load_balancer.train(num_servers, X_t, profit)

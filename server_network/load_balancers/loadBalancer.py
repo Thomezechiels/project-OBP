@@ -21,6 +21,9 @@ class LoadBalancer:
       if random.random() < epsilon:
          return random.randint(1, self.config['max_servers'])
       return self.model.evaluate(X_t)
+   
+   def evaluate_live(self, X_t, t):
+      return self.model.evaluate_live(X_t)
     
    def train(self, num_servers, X_t, profit):
       

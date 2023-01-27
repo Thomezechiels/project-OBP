@@ -29,6 +29,7 @@ locale.setlocale(locale.LC_ALL, '')
 global config
 global state
 global progress
+global await_response
 
 app = dash.Dash(
     __name__,
@@ -61,7 +62,7 @@ def generateRequest(arrival_prob):
     else:
         return False    
     
-def run_simulation():
+def run_simulation_test():
     serverNetwork = ServerNetwork(5, config['max_processes'], config = config, routing_policy=config['routing_chosen'], load_balancer=config['algorithm_chosen'])
     steps = config['steps']
     t = 0
@@ -80,6 +81,37 @@ def run_simulation():
             arrival_prob = 1 / (1 + math.exp(-X_t.sum()))
             serverNetwork.evaluate(X_t, period)
             time.sleep(0.1)
+        request = generateRequest(arrival_prob)
+        if (request and request.size > 0):
+            serverNetwork.handleRequest(t, request)
+        serverNetwork.update(t)
+        t += 1
+    progress = 1.0
+    global state
+    state = serverNetwork.outputStateHistory()
+
+def run_simulation_live():
+    serverNetwork = ServerNetwork(5, config['max_processes'], config = config, routing_policy=config['routing_chosen'], load_balancer=config['algorithm_chosen'])
+    steps = config['steps']
+    t = 0
+    total_periods = config['end_time'] - config['start_time']
+    end = total_periods * steps
+    arrival_prob = 0
+    global await_response
+    await_response = True
+    global progress
+    while (t < end):
+        period = t / steps
+        if period.is_integer():
+            if t > 0:
+                num_servers, profit = serverNetwork.get_profit_period(t = t)
+                serverNetwork.train_lb(num_servers, X_t, profit)
+            X_t = np.random.normal(0, 0.6, 8)
+            arrival_prob = 1 / (1 + math.exp(-X_t.sum()))
+            progress = serverNetwork.evaluate_live(X_t, period)
+            # while(await_response):
+            #     time.sleep(1)
+            print(progress)
         request = generateRequest(arrival_prob)
         if (request and request.size > 0):
             serverNetwork.handleRequest(t, request)
@@ -445,7 +477,7 @@ def build_tab_1():
         ), 
     )
 
-def generate_section_banner(title, extra):
+def generate_section_banner(title, extra=None):
     return html.Div(className="section-banner", children=[title, extra])
 
 def build_top_panel():
@@ -459,19 +491,19 @@ def build_top_panel():
                 className="eight columns",
                 children=[
                     generate_section_banner("Network Control Metrics Summary",
-                        html.Div(
-                            id="info-number-active-servers",
-                            children=[
-                                "Using ",
-                                html.Span(
-                                    id="num-used-servers",
-                                    children="0"
-                                ),
-                                "/",
-                                str(config['max_servers']),
-                                " of available servers"
-                            ]
-                        )
+                        # html.Div(
+                        #     id="info-number-active-servers",
+                        #     children=[
+                        #         "Using ",
+                        #         html.Span(
+                        #             id="num-used-servers",
+                        #             children="0"
+                        #         ),
+                        #         "/",
+                        #         str(config['max_servers']),
+                        #         " of available servers"
+                        #     ]
+                        # )
                     ),
 
                     html.Div(
@@ -842,10 +874,12 @@ def render_tab_content(tab_switch, network_tab_state):
             case "start-screen":
                 return None, 'start-screen'
             case 'test-mode-start':
-                return overview_html, 'test-start-screen'
+                return None, 'test-start-screen'
             case 'run-simulation':
-                Thread(target=run_simulation).start()
+                Thread(target=run_simulation_test).start()
                 return buildSimRunning(),'simulation-running'
+            case 'run-simulation-live':
+                Thread(target=run_simulation_live).start()
             case "test-mode-finished":
                 return overview_html, 'none'
 
@@ -866,7 +900,7 @@ def render_network_tab(test_btn, live_btn, mode_btn, test_start_btn, sim_run_fin
     elif button_id == 'test-mode-start':
         return 'run-simulation',
     elif button_id == 'live-mode-btn':
-        return 'start-screen',
+        return 'run-simulation-live',
     elif button_id == 'mode-change-btn':
         return 'start-screen',
     elif button_id == 'sim-run-finished-btn':
@@ -900,6 +934,7 @@ if __name__ == '__main__':
         try:
             progress = 0
             config = yaml.safe_load(stream)
+            await_response = False
             config['algorithm_chosen'] = config['algorithms'][0]
             config['routing_chosen'] = config['routing_policies'][0]
             state = pd.read_pickle(r'data/network_history.pickle')
