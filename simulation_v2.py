@@ -40,15 +40,15 @@ def generateRequest(arrival_prob):
         return False    
     
 def run_simulation():
-    serverNetwork = ServerNetwork(5, config['max_processes'], config = config, routing_policy='round_robin', load_balancer='NN')
+    serverNetwork = ServerNetwork(5, config['max_processes'], config = config, routing_policy='round_robin', load_balancer='regression')
     steps = config['steps']
     t = 0
     end = (config['end_time'] - config['start_time']) * steps
     arrival_prob = 0
 
-    context_vector_options_max = np.matrix([[1, 1, 1, 1/5, 1, 0, 1, 1]])
-    context_vector_options_min = np.matrix([[1/7, scipy.stats.norm(0.5, 0.2).pdf(1/24)/2, 1/4, 1, 0, 1, 0, 0]])
-    weights = np.matrix([[4],[8],[3],[-2],[1],[-1],[1],[1]])
+    context_vector_options_max = np.matrix([[1, 1, 1, 1/5]])
+    context_vector_options_min = np.matrix([[1/7, scipy.stats.norm(0.5, 0.2).pdf(1/24)/2, 1/4, 1]])
+    weights = np.matrix([[4],[8],[3],[-2]])
     max = multiply_matrix(context_vector_options_max, weights)[0][0]
     min = multiply_matrix(context_vector_options_min, weights)[0][0]
     
@@ -62,7 +62,7 @@ def run_simulation():
             # arrival_prob = 1 / (1 + math.exp(-X_t.sum())
 
             hour_context = scipy.stats.norm(0.5, 0.2).pdf(((period + 1) % 24)/24)/2
-            X_t = np.array([random.randint(1, 7)/7, hour_context, random.randint(1, 4)/4, random.randint(1, 5)/5, random.randint(0, 1), random.randint(0, 1), random.randint(0, 1), random.randint(0, 1)])
+            X_t = np.array([random.randint(1, 7)/7, hour_context, random.randint(1, 4)/4, random.randint(1, 5)/5])
             arrival_prob = ((multiply_matrix(np.asmatrix(X_t), weights)[0][0] - min)/(max-min))*0.8 + 0.1
 
             serverNetwork.evaluate(X_t, period)
@@ -73,6 +73,11 @@ def run_simulation():
         t += 1
 
 if __name__ == '__main__':
+    def warn(*args, **kwargs):
+        pass
+    import warnings
+    warnings.warn = warn
+
     parser = ArgumentParser()
     parser.add_argument('-C', '--config',
                         dest='config',
