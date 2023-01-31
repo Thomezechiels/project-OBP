@@ -11,6 +11,8 @@ def initServerState(id, config):
   ret['num_running_requests'] = []
   ret['size_queue'] = []
   ret['num_finised_requests'] = []
+  ret['waiting_times_small'] = []
+  ret['waiting_times_large'] = []
   return ret
 
 def initState(config):
@@ -21,21 +23,23 @@ def initState(config):
       servers[id] = None
     ret['servers'] = servers
     ret['servers_used'] = []
+    ret['waiting_times_small'] = []
+    ret['waiting_times_large'] = []
     ret['profit'] = {
       'total': [],
-      'rewards': [],
+      'rewards_small': [],
+      'rewards_large': [],
       'fails': [],
       'server_costs': [],   
     }
     ret['arrivals'] = {
-      'small': [0],
-      'large': [0],
+      'small': [],
+      'large': [],
     }
     return ret
 
 class ServerNetwork:
   def __init__(self, num_servers, server_capacity, config, routing_policy = 'Round Robin', load_balancer = 'Neural Network'):
-    print(routing_policy, load_balancer)
     self.server_pointer = 0
     self.routing_policy = routing_policy
     self.capacity_servers = server_capacity
@@ -92,12 +96,25 @@ class ServerNetwork:
     return self.getServer(id)
   
   def updateState(self):
+    times_small, mags_small = 0, 0
+    times_large, mags_large = 0, 0
     for server in range(self.config['max_servers']):
-      self.state_history['servers'][server] = self.getServer(server).updateState()
+      ser = self.getServer(server)
+      self.state_history['servers'][server] = ser.updateState()
+      time_small, mag_small = ser.state_history['waiting_times_small'][-1]
+      times_small += time_small
+      mags_small += mag_small
+      time_large, mag_large = ser.state_history['waiting_times_large'][-1]
+      times_large += time_large
+      mags_large += mag_large
+    
+    self.state_history['waiting_times_small'].append(times_small/mags_small if mags_small > 0 else 0)
+    self.state_history['waiting_times_large'].append(times_large/mags_large if mags_large > 0 else 0)
     self.state_history['servers_used'].append(len(self.active_servers))
-    rewards, cost_servers, cost_failed, profit = self.calculate_profit_period()
+    rewards_small, rewards_large, cost_servers, cost_failed, profit = self.calculate_profit_period()
     self.state_history['profit']['total'].append(profit)
-    self.state_history['profit']['rewards'].append(rewards)
+    self.state_history['profit']['rewards_small'].append(rewards_small)
+    self.state_history['profit']['rewards_large'].append(rewards_large)
     self.state_history['profit']['fails'].append(cost_failed)
     self.state_history['profit']['server_costs'].append(cost_servers)
     self.state_history['arrivals']['small'].append(0)
@@ -127,7 +144,7 @@ class ServerNetwork:
       self.load_balancer.train(num_servers, X_t, profit)
   
   def get_profit_period(self, t = 0):
-    rewards, cost_servers, cost_failed, profit = self.calculate_profit_period()
+    rewards_small, rewards_large, cost_servers, cost_failed, profit = self.calculate_profit_period()
     return len(self.active_servers), profit
   
   def reset_period(self):
@@ -142,19 +159,18 @@ class ServerNetwork:
 
   def calculate_profit_period(self):
     cost_servers = -len(self.active_servers) * self.config['cost_server']
-    rewards = 0
-    cost_failed = 0
+    rewards_small, rewards_large, cost_failed = 0, 0, 0
     for server in self.all_servers:
       for request in server.finished_requests_period:
         if request.completed:
-          rewards += self.config['reward_small'] if request.type == 'small' else self.config['reward_large']
+          if request.type == 'small':
+            rewards_small += self.config['reward_small']  
+          else:
+            rewards_large += self.config['reward_large']
         elif request.failed:
           cost_failed -= self.config['cost_fail']
-    # print('Cost servers:', cost_servers)
-    # print('Rewards:', rewards)
-    # print('Cost fails:', cost_failed)
-    profit = cost_servers + rewards + cost_failed
-    return rewards, cost_servers, cost_failed, profit
+    profit = cost_servers + rewards_small + rewards_large + cost_failed
+    return rewards_small, rewards_large, cost_servers, cost_failed, profit
     
 
   def update(self, t):
@@ -183,19 +199,17 @@ class ServerNetwork:
     
   def calculate_profit(self):
     cost_servers = -sum(self.used_servers) * self.config['cost_server']
-    rewards = 0
-    fails = 0
+    rewards_small, rewards_large, fails = 0, 0, 0
     for server in self.all_servers:
       for request in server.finished_requests:
         if request.completed:
-          rewards += self.config['reward_small'] if request.type == 'small' else self.config['reward_large']
+          if request.type == 'small':
+            rewards_small += self.config['reward_small']
+          else:
+            rewards_large += self.config['reward_large']
         elif request.failed:
           fails -= self.config['cost_fail']
-
-    # print('Cost servers:', cost_servers)
-    # print('Rewards:', rewards)
-    # print('Cost fails:', fails)
-    profit = cost_servers + rewards + fails
+    profit = cost_servers + rewards_small + rewards_large + fails
     return profit
           
   def listServers(self):
@@ -220,12 +234,16 @@ class Server:
     self.finished_requests = []
     self.finished_requests_period = []
     self.state_history = initServerState(id, config)
+    self.waiting_times_small = []
+    self.waiting_times_large = []
 
   def updateState(self):
     self.state_history['active'].append(self.active)
     self.state_history['num_running_requests'].append(len(self.requests_running))
     self.state_history['size_queue'].append(len(self.queue))
     self.state_history['num_finised_requests'].append(len(self.finished_requests))
+    self.state_history['waiting_times_small'].append((sum(self.waiting_times_small), len(self.waiting_times_small)))
+    self.state_history['waiting_times_large'].append((sum(self.waiting_times_large), len(self.waiting_times_large)))
     return self.state_history
 
   def addRequest(self, t, request):
@@ -242,6 +260,8 @@ class Server:
     self.finished_requests_period = []
     self.requests_running = []
     self.queue = []
+    self.waiting_times_small = []
+    self.waiting_times_large = []
 
   def getTotalWorkload(self, t):
     workload = 0
@@ -262,6 +282,10 @@ class Server:
           request.setEnd(t + request.size)
           request.setStart(t)
           self.requests_running.append(request)
+          if request.type == 'small':
+            self.waiting_times_small.append(t - request.start_queue)
+          else:
+            self.waiting_times_large.append(t - request.start_queue)
 
   def check_running_requests(self, t):
     for i in reversed(range(len(self.requests_running))):
@@ -280,6 +304,10 @@ class Server:
         request.setFailed(True)
         self.finished_requests.append(request)
         self.finished_requests_period.append(request)
+        if request.type == 'small':
+          self.waiting_times_small.append(t - request.start_queue)
+        else:
+          self.waiting_times_large.append(t - request.start_queue)
         del self.queue[i]
 
   def printRunningRequests(self, t):

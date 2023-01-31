@@ -35,6 +35,22 @@
 	background-color: #909090;
 }
 
+button {
+  color: #fff;
+  transition: all .3s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+button i {
+  margin-right: 7px;
+}
+button:hover {
+  background: #fff;
+  border-color: #fff;
+  color: #0F1328;
+}
+
 #app-container * {
   box-sizing: border-box;
   -moz-box-sizing: border-box;
@@ -86,23 +102,11 @@ body {
   line-height: 1;
 }
 
-.banner button {
-  color: #95969A;
-  margin-right: 10px;
-  height: 3rem;
-  line-height: 3rem;
-}
-
 #banner-logo {
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: flex-end;
-}
-
-.banner button:hover {
-  color: #92e0d3;
-  border-color: whitesmoke;
 }
 
 .banner Img {
@@ -256,6 +260,46 @@ body {
   justify-content: flex-start;
   align-items: center;
 }
+#decision-table #table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+#decision-table #table-header > div {
+  width: calc(100% - 120px - 180px);
+  text-align: left;
+}
+#decision-table #table-header > div:nth-child(2) {
+  width: 120px;
+  text-align: center;
+}
+#decision-table #table-header > div:last-child {
+  width: 180px;
+  text-align: center;
+}
+#decision-table {
+  display: block;
+  opacity: 1;
+  visibility: visible;
+  transition: all .3s ease-in-out;
+}
+#decision-table.inactive {
+  opacity: 0;
+  visibility: hidden;
+}
+#decision-table #decision-table-body > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+}
+#decision-table #decision-table-body > div > button {
+  width: 160px;
+  margin-left: 20px;
+}
+#decision-table #decision-table-body > div > p {
+  width: calc((100% - 200px)/2);
+}
 #quick-stats #profit-table {
   max-height: 100%;
 }
@@ -279,6 +323,7 @@ body {
 #metric-summary-session {
   height: 100%;
   flex: 1 1 auto;
+  width: 100%;
 }
 
 #ooc-piechart-outer {
@@ -560,7 +605,12 @@ body {
   max-width: calc(75%);
   width: 70%;
 }
-
+#server-profit-graph {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+}
 /* Tab 2 Start screen
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 #big-app-container #app-content {
@@ -569,7 +619,8 @@ body {
   /* transition: all .3s ease-in-out; */
 }
 #big-app-container.none #app-content,
-#big-app-container.simulation-running #app-content {
+#big-app-container.simulation-running #app-content,
+#big-app-container.live-simulation-running #app-content {
   visibility: visible;
   opacity: 1;
 }
@@ -769,6 +820,7 @@ body {
   width: 100%;
   height: auto;
   max-height: 40vh;
+  border-bottom: 1px solid #fff;
 }
 
 /*
