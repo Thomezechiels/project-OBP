@@ -88,7 +88,6 @@ def generate_request(arrival_prob):
     else:
         return False
 
-
 def run_simulation_test():
     serverNetwork = ServerNetwork(5, config['max_processes'], config=config,
                                   routing_policy=config['routing_chosen'], load_balancer=config['algorithm_chosen'])
