@@ -33,13 +33,13 @@ def initState(config):
       'server_costs': [],   
     }
     ret['arrivals'] = {
-      'small': [],
-      'large': [],
+      'small': [0.1],
+      'large': [0.1],
     }
     return ret
 
 class ServerNetwork:
-  def __init__(self, num_servers, server_capacity, config, routing_policy = 'Round Robin', load_balancer = 'Neural Network'):
+  def __init__(self, num_servers, server_capacity, config, routing_policy = 'Round Robin', load_balancer = 'Simple Regression'):
     self.server_pointer = 0
     self.routing_policy = routing_policy
     self.capacity_servers = server_capacity
@@ -123,9 +123,15 @@ class ServerNetwork:
   def outputStateHistory(self):
     return self.state_history
 
-  def evaluate(self, X_t = [], period = 0):
+  def final_update(self):
     self.used_servers.append(len(self.active_servers))
     self.updateState()
+    self.reset_period()
+    
+  def evaluate(self, X_t = [], period = 0):
+    if period > 0:
+      self.used_servers.append(len(self.active_servers))
+      self.updateState()
     self.reset_period()
     if self.load_balancer:
       num_servers = self.load_balancer.evaluate(X_t, period)

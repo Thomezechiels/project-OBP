@@ -1,6 +1,8 @@
 import os
 import pathlib
 
+import scipy.stats
+
 import dash
 import dash_bootstrap_components as dbc
 from dash import dcc, no_update, html, dash_table, ctx
@@ -60,6 +62,20 @@ def init_state():
         'network': False,
         'step': 0,
     }
+    
+def multiply_matrix(A,B):
+  global C
+  if  A.shape[1] == B.shape[0]:
+    rows = B.shape[1]
+    cols = A.shape[0]
+    C = np.zeros((A.shape[0],B.shape[1]),dtype = int)
+    for row in range(rows): 
+        for col in range(cols):
+            for elt in range(len(B)):
+              C[row, col] += A[row, elt] * B[elt, col]
+    return C
+  else:
+    return np.array([[20]])
 
 
 def generate_request(arrival_prob):
@@ -81,6 +97,13 @@ def run_simulation_test():
     total_periods = config['end_time'] - config['start_time']
     end = total_periods * steps
     arrival_prob = 0
+    
+    context_vector_options_max = np.matrix([[1, 1, 1, 1/5]])
+    context_vector_options_min = np.matrix([[1/7, scipy.stats.norm(0.5, 0.2).pdf(1/24)/2, 1/4, 1]])
+    weights = np.matrix([[4],[8],[3],[-2]])
+    max = multiply_matrix(context_vector_options_max, weights)[0][0]
+    min = multiply_matrix(context_vector_options_min, weights)[0][0]
+    
     global progress
     while (t < end):
         period = t / steps
@@ -88,9 +111,12 @@ def run_simulation_test():
             progress = period / total_periods
             if t > 0:
                 num_servers, profit = serverNetwork.get_profit_period(t=t)
-                serverNetwork.train_lb(num_servers, X_t, profit)
-            X_t = np.random.normal(0, 0.6, 8)
-            arrival_prob = 1 / (1 + math.exp(-X_t.sum()))
+                # serverNetwork.train_lb(num_servers, X_t, profit)
+           
+            hour_context = scipy.stats.norm(0.5, 0.2).pdf(((period + 1) % 24)/24)/2
+            X_t = np.array([random.randint(1, 7)/7, hour_context, random.randint(1, 4)/4, random.randint(1, 5)/5])
+            arrival_prob = ((multiply_matrix(np.asmatrix(X_t), weights)[0][0] - min)/(max-min))*0.8 + 0.1
+           
             serverNetwork.evaluate(X_t, period)
             # time.sleep(0.1)
         request = generate_request(arrival_prob)
@@ -98,7 +124,8 @@ def run_simulation_test():
             serverNetwork.handleRequest(t, request)
         serverNetwork.update(t)
         t += 1
-
+        
+    serverNetwork.final_update()
     progress = 1.0
     state['network'] = serverNetwork.outputStateHistory()
 
@@ -115,18 +142,26 @@ def run_simulation_live():
     total_periods = config['end_time'] - config['start_time']
     end = total_periods * steps
     arrival_prob = 0
+    context_vector_options_max = np.matrix([[1, 1, 1, 1/5]])
+    context_vector_options_min = np.matrix([[1/7, scipy.stats.norm(0.5, 0.2).pdf(1/24)/2, 1/4, 1]])
+    weights = np.matrix([[4],[8],[3],[-2]])
+    max = multiply_matrix(context_vector_options_max, weights)[0][0]
+    min = multiply_matrix(context_vector_options_min, weights)[0][0]
+    
     while t < end:
         period = t / steps
             
         if period.is_integer():
             if t > 0:
                 num_servers, profit = serverNetwork.get_profit_period(t=t)
-                serverNetwork.train_lb(num_servers, X_t, profit)
+                # serverNetwork.train_lb(num_servers, X_t, profit)
                 serverNetwork.updateState()
                 state['network'] = serverNetwork.outputStateHistory()
                 state['step'] = t
-            X_t = np.random.normal(0, 0.6, 8)
-            arrival_prob = 1 / (1 + math.exp(-X_t.sum()))
+            hour_context = scipy.stats.norm(0.5, 0.2).pdf(((period + 1) % 24)/24)/2
+            X_t = np.array([random.randint(1, 7)/7, hour_context, random.randint(1, 4)/4, random.randint(1, 5)/5])
+            arrival_prob = ((multiply_matrix(np.asmatrix(X_t), weights)[0][0] - min)/(max-min))*0.8 + 0.1
+            
             progress = serverNetwork.evaluate_live(X_t, period)
             await_response = True
             state['changed'] = True
@@ -368,7 +403,7 @@ def build_server_profit_graph():
                     "line": {"color": "#f4d44d"},
                 },
                 {
-                    "y": optimal,
+                    "y": optimal[:-1],
                     "x": list(range(0, len(optimal))),
                     "mode": "lines+markers",
                     "name": 'Optimal servers per hour',

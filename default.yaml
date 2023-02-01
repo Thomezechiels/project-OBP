@@ -7,8 +7,9 @@ routing_policies:
 
 
 algorithms:
+ - "Random Forest"
+ - "Simple Regression"
  - "Neural Network"
-#  - "Random Forest"
 #  - "Logistic Regression"
  - "None"
   
