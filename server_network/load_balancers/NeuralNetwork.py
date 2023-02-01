@@ -16,7 +16,7 @@ class NeuralNetwork:
         self.model = joblib.load(filename)
         self.data = pd.DataFrame(columns = ['num_servers', 'X_t','profit'])
 
-    def evaluate(self, X_t):        
+    def evaluate(self, X_t):      
         max_profit = -1000000
         optimal_servers = 1
         for num_server in range(1,10):
