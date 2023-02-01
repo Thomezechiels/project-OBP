@@ -11,6 +11,8 @@ class RandomForest:
         self.data = pd.DataFrame(columns = ['num_servers', 'X_t','profit'])
         self.iteration = 0
         self.history = pd.DataFrame(columns=['max_profit','optimal_servers'])
+        self.last_profit = False
+        self.differences = []
 
     def evaluate(self, X_t):        
         max_profit = -1000000000
@@ -26,8 +28,9 @@ class RandomForest:
             if profit > max_profit:
                 max_profit = profit
                 optimal_servers = num_server
+                self.last_profit = profit
         print('max_profit', max_profit)
-        print('optimal_servers', optimal_servers)
+        # print('optimal_servers', optimal_servers)
         history_df = pd.DataFrame([[max_profit, optimal_servers]],columns = ['max_profit', 'optimal_servers'])
         self.history = pd.concat([self.history, history_df])
         return optimal_servers
@@ -35,9 +38,20 @@ class RandomForest:
     
     def train(self, num_servers, X_t, profit):
         print('training iteration:', self.iteration)
+        print('profit:', profit)
         self.iteration +=1
 
         # print(num_servers, X_t, profit);
+
+        if (self.last_profit):
+            #difference = (abs(abs(profit) - abs(self.last_profit[0]))/profit) * 100
+            difference = abs(profit - self.last_profit[0])
+            self.differences.append(difference)
+            if (len(self.differences) > 24):
+                self.differences.pop(0)
+            total_difference = round(sum(self.differences) / len(self.differences), 2)
+            print('Difference:', str(total_difference))
+            self.last_profit = False
 
         temp_df = pd.DataFrame([[num_servers, X_t, profit]],columns = ['num_servers', 'X_t','profit'])
         self.data = pd.concat([self.data, temp_df])

@@ -20,7 +20,7 @@ class LoadBalancer:
          self.model = False
 
    def evaluate(self, X_t, t):
-      t = 1 if t < 20 else t
+      t = 1 if t < 100 else t
       epsilon = 1 / math.sqrt(t)
       if random.random() < epsilon:
          return random.randint(1, self.config['max_servers'])

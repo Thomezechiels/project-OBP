@@ -5,9 +5,11 @@ from sklearn.model_selection import train_test_split
 
 class NeuralNetwork:
     def __init__(self):
-        self.model = None
+        self.model = MLPRegressor(hidden_layer_sizes=(8,8,8), activation='relu', solver='adam', max_iter=500)
         self.data = pd.DataFrame(columns = ['num_servers', 'X_t','profit'])
         self.iteration = 0
+        self.last_profit = False
+        self.differences = []
 
     def evaluate(self, X_t):        
         max_profit = -1000000
@@ -21,15 +23,25 @@ class NeuralNetwork:
             if profit > max_profit:
                 max_profit = profit
                 optimal_servers = num_server
-        print('max_profit', max_profit)
-        print('optimal_servers', optimal_servers)
+                self.last_profit = profit
+        # print('max_profit', max_profit)
+        # print('optimal_servers', optimal_servers)
         return optimal_servers
         
     
     def train(self, num_servers, X_t, profit):
         print('training iteration:', self.iteration)
-        print('training profit:', profit)
         self.iteration +=1
+
+        if (self.last_profit):
+            #difference = (abs(abs(profit) - abs(self.last_profit[0]))/profit) * 100
+            difference = abs(profit - self.last_profit[0])
+            self.differences.append(difference)
+            if (len(self.differences) > 24):
+                self.differences.pop(0)
+            total_difference = round(sum(self.differences) / len(self.differences), 2)
+            print('Difference:', str(total_difference), profit, self.last_profit[0])
+            self.last_profit = False
 
         temp_df = pd.DataFrame([[num_servers, X_t, profit]],columns = ['num_servers', 'X_t','profit'])
         self.data = pd.concat([self.data, temp_df])
@@ -50,6 +62,5 @@ class NeuralNetwork:
         #train/test split nog implementeren?
         # if self.iteration>10:
         #     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=40)
- 
-        self.model = MLPRegressor(hidden_layer_sizes=(8,8,8,8,8), activation='relu', solver='adam', max_iter=500)
+
         self.model.fit(X,y)
