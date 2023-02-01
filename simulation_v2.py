@@ -14,6 +14,8 @@ import scipy.stats
 from server_network.request import Request
 from server_network.servers import ServerNetwork
 
+import joblib
+
 global config
 
 def multiply_matrix(A,B):
@@ -40,7 +42,7 @@ def generateRequest(arrival_prob):
         return False    
     
 def run_simulation():
-    serverNetwork = ServerNetwork(5, config['max_processes'], config = config, routing_policy='round_robin', load_balancer='regression')
+    serverNetwork = ServerNetwork(5, config['max_processes'], config = config, routing_policy='round_robin', load_balancer='rf')
     steps = config['steps']
     t = 0
     end = (config['end_time'] - config['start_time']) * steps
@@ -71,6 +73,9 @@ def run_simulation():
             serverNetwork.handleRequest(t, request)
         serverNetwork.update(t)
         t += 1
+    
+    filename = 'neural_network.sav'
+    joblib.dump(serverNetwork.load_balancer.model.model, filename)
 
 if __name__ == '__main__':
     def warn(*args, **kwargs):
