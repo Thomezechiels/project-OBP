@@ -1,6 +1,9 @@
 import locale
 locale.setlocale(locale.LC_ALL, '')
 
+import sys
+assert sys.version_info >= (3, 10)
+
 import os
 import pathlib
 import yaml
