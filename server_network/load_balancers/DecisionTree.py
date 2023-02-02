@@ -6,7 +6,7 @@ from sklearn.tree import DecisionTreeRegressor
 
 class DecisionTree:
     def __init__(self):
-        filename = 'data/models/simple_regression.sav'
+        filename = 'data/models/decision_tree.sav'
         self.model = joblib.load(filename)
         self.data = pd.DataFrame(columns = ['num_servers', 'X_t','profit'])
 
