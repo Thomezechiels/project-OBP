@@ -1,7 +1,8 @@
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
 import numpy as np
 import joblib
+from sklearn.ensemble import RandomForestRegressor
+
 
 class RandomForest:
     def __init__(self):

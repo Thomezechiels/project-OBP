@@ -3,14 +3,11 @@
 routing_policies:
   - "Round Robin"
   - "Least Connections"
-  # - "Random load"
-
 
 algorithms:
  - "Random Forest"
- - "Simple Regression"
+ - "Decision Tree"
  - "Neural Network"
-#  - "Logistic Regression"
  - "None"
   
 #starting en ending hour of simulation
@@ -22,33 +19,6 @@ size_period: 1
 
 #number of intervals one period should be split into (steps)
 steps: 3600
-
-#chance of arrival per period [0-1]
-arrival_rates:
-  - 0.05
-  - 0.1
-  - 0.15
-  - 0.15
-  - 0.2
-  - 0.22
-  - 0.22
-  - 0.25
-  - 0.38
-  - 0.41
-  - 0.42
-  - 0.46
-  - 0.39
-  - 0.52
-  - 0.59
-  - 0.41
-  - 0.43
-  - 0.39
-  - 0.36
-  - 0.26
-  - 0.15
-  - 0.11
-  - 0.10
-  - 0.08
 
 #probability request will be a small request (probabiliy large request will automatically be 1 - prob_small)
 prob_small: 0.8

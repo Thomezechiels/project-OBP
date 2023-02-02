@@ -1,9 +1,10 @@
 import pandas as pd
-from sklearn.tree import DecisionTreeRegressor
 import numpy as np
 import joblib
+from sklearn.tree import DecisionTreeRegressor
 
-class SimpleRegression:
+
+class DecisionTree:
     def __init__(self):
         filename = 'data/models/simple_regression.sav'
         self.model = joblib.load(filename)
@@ -17,11 +18,9 @@ class SimpleRegression:
             temp_df[['x1','x2','x3','x4']] = pd.DataFrame(temp_df.X_t.tolist(), index = temp_df.index)
             temp_df = temp_df.drop(['X_t'],axis=1)
             profit = self.model.predict(temp_df)
-            print('Option {}: € {}'.format(num_server, profit))
             if profit > max_profit:
                 max_profit = profit
                 optimal_servers = num_server
-        print('{} servers: € {}'.format(optimal_servers, max_profit))
         return optimal_servers
     
     def evaluate_live(self, X_t):        

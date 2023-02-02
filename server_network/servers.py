@@ -1,7 +1,4 @@
-import math
-import random
-from server_network.load_balancers.loadBalancer import LoadBalancer
-import pandas as pd
+from server_network.load_balancers.LoadBalancer import LoadBalancer
 
 def initServerState(id, config):
   ret = {}
@@ -39,7 +36,7 @@ def initState(config):
     return ret
 
 class ServerNetwork:
-  def __init__(self, num_servers, server_capacity, config, routing_policy = 'Round Robin', load_balancer = 'Simple Regression'):
+  def __init__(self, num_servers, server_capacity, config, routing_policy = 'Round Robin', load_balancer = 'Decision Tree'):
     self.server_pointer = 0
     self.routing_policy = routing_policy
     self.capacity_servers = server_capacity
@@ -333,12 +330,3 @@ class Server:
     result += '\t Number of running processes: ' + str(len(self.requests_running)) + '\n'
     result += '\t Number of processes in queue: ' + str(len(self.queue)) + '\n'
     print(result)
-
-# For testing (remove in final product):
-
-# if __name__ == '__main__':
-#   serverNetwork = ServerNetwork(3, 5)
-#   serverNetwork.setNActiveServers(8)
-#   serverNetwork.listServers()
-#   serverNetwork.setNActiveServers(2)
-#   serverNetwork.listServers()
