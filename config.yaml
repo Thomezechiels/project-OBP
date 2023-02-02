@@ -12,7 +12,7 @@ algorithms:
   
 #starting en ending hour of simulation
 start_time: 0
-end_time: 200
+end_time: 24
 
 #size of one period
 size_period: 1

@@ -117,7 +117,9 @@ def run_simulation(model, routing, output):
         t += 1
 
     #Save trained model:
-    joblib.dump(serverNetwork.load_balancer.model.model, output)
+    filepath = Path('data/models/' + output)  
+    filepath.parent.mkdir(parents=True, exist_ok=True)  
+    joblib.dump(serverNetwork.load_balancer.model.model, filepath)
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -137,7 +139,7 @@ if __name__ == '__main__':
                         default='Round Robin', type=str)
     parser.add_argument('-O', '--output',
                         dest='output',
-                        help='The filename of the file in which the resulting model will be stored',
+                        help='The filename of the file in which the resulting model will be stored. (It will be stores in the data/models directory)',
                         default='model.sav', type=str)
 
     args = parser.parse_args()
