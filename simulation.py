@@ -1,3 +1,4 @@
+import os
 from pathlib import Path 
 import yaml
 import joblib
@@ -120,13 +121,20 @@ def run_simulation(model, routing, output):
     filepath = Path('data/models/' + output)  
     filepath.parent.mkdir(parents=True, exist_ok=True)  
     joblib.dump(serverNetwork.load_balancer.model.model, filepath)
+    
+def file_choices(choices, fname):
+    ext = os.path.splitext(fname)[1][1:]
+    if ext not in choices:
+       parser.error("config file should be of type {}".format(choices))
+    return fname
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-C', '--config',
                         dest='config',
                         help='Select config to run the simulation with',
-                        default='config.yaml', type=str)
+                        default='config.yaml',
+                        type=lambda s:file_choices(("yaml"), s))
     parser.add_argument('-M', '--model',
                         dest='model',
                         choices=['Decision Tree', 'Random Forest', 'Neural Network'],

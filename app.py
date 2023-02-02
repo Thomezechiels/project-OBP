@@ -1588,12 +1588,20 @@ def render_network_tab(test_btn, live_btn, mode_btn, test_start_btn, sim_run_fin
             return 'test-mode-finished',
 
 
+def file_choices(choices, fname):
+    ext = os.path.splitext(fname)[1][1:]
+    if ext not in choices:
+       parser.error("config file should be of type {}".format(choices))
+    return fname
+
+
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-C', '--config',
                         dest='config',
                         help='Select config to run the simulation with',
-                        default='config.yaml', type=str)
+                        default='config.yaml',
+                        type=lambda s:file_choices(("yaml"), s))
 
     args = parser.parse_args()
     APP_PATH = str(pathlib.Path(__file__).parent.resolve())
