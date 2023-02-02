@@ -29,8 +29,8 @@ After viewing the results the simulation can be re-run with a different algorith
 
 ## Model Training
 The models used in the simulation are pre-trained models on the settings as defined by the default configuration file. To load models that have been trained on different simulation settings a separate simulation can be run. To do this 'simulation.py' has to be run with the following arguments: 
-  -C --config: Select the configuration file to run the simulation with
-  -M --model: Specify which model to use. Currently available models are: 'Decision Tree', 'Random Forest', 'Neural Network'.
-  -R --routing: Specify the routing policy to use.
-  -O --output: Give the name under which the file should be saved. Models are saved to the 'data/models' directory.
+- -C --config: Select the configuration file to run the simulation with
+- -M --model: Specify which model to use. Currently available models are: 'Decision Tree', 'Random Forest', 'Neural Network'.
+- -R --routing: Specify the routing policy to use.
+- -O --output: Give the name under which the file should be saved. Models are saved to the 'data/models' directory.
 To overwrite the pre-trained models currently available for Decision Tree, Random Forest, and Neural Network use the filenames 'decision\_tree.sav', 'random\_forest.sav', and 'neural\_network.sav' respectively. 
